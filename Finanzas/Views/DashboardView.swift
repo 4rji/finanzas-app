@@ -3,24 +3,32 @@ import SwiftData
 
 struct DashboardView: View {
     @Environment(\.l10n) private var t
+    @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var scenePhase
     @Query private var debts: [Debt]
-    @Query private var incomes: [Income]
+    @Query(sort: \Account.createdAt) private var accounts: [Account]
+    @Query private var incomes: [RecurringIncome]
+    @Query private var movements: [Movement]
 
     private var totalDebt: Double {
         debts.reduce(0) { $0 + $1.totalOwed }
+    }
+
+    private var totalBalance: Double {
+        accounts.reduce(0) { $0 + $1.balance }
     }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
                 NavigationLink {
-                    IncomeListView()
+                    AccountsView()
                 } label: {
                     SummaryCard(
-                        title: t.income,
-                        systemImage: "banknote",
-                        amount: incomes.monthlyIncome,
-                        subtitle: incomeSubtitle
+                        title: t.accounts,
+                        systemImage: "building.columns",
+                        amount: totalBalance,
+                        subtitle: accountsSubtitle
                     )
                 }
                 .buttonStyle(.plain)
@@ -58,12 +66,22 @@ struct DashboardView: View {
                 #endif
             }
         }
+        // Suma los depósitos recurrentes que ya tocan al abrir la app, al volver a ella y cuando
+        // cambian los movimientos (por ejemplo, al llegar cambios de otro dispositivo).
+        .task { RecurringDeposits.update(in: context) }
+        .onChange(of: scenePhase) {
+            if scenePhase == .active { RecurringDeposits.update(in: context) }
+        }
+        .onChange(of: movements.count) {
+            RecurringDeposits.update(in: context)
+        }
     }
 
-    private var incomeSubtitle: String {
-        let extras = incomes.extrasTotal()
-        guard extras > 0 else { return t.perMonthApprox }
-        return t.perMonthApprox + " · " + t.extrasThisMonth + " " + t.money(extras)
+    private var accountsSubtitle: String {
+        guard let first = accounts.first else { return t.addAccountHint }
+        let name = accounts.count == 1 ? first.name : t.accountCount(accounts.count)
+        let monthly = incomes.monthlyIncome
+        return monthly > 0 ? name + " · " + t.incomePerMonthShort(monthly) : name
     }
 
     private var debtsSubtitle: String {

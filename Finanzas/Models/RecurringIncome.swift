@@ -9,9 +9,9 @@ final class RecurringIncome {
     var createdAt: Date = Date()
     var amount: Double = 0
     var frequencyRaw: String = "weekly"
-    /// Primera fecha de pago del calendario actual.
+    /// Un día de pago (pasado o futuro) del que salen las demás fechas según la frecuencia.
     var startDate: Date = Date()
-    /// Depósitos ya sumados desde `startDate`.
+    /// Número del siguiente pago por sumar, contando desde `startDate`.
     var postedCount: Int = 0
     var account: Account?
 
@@ -37,11 +37,12 @@ final class RecurringIncome {
         amount * frequency.paymentsPerMonth
     }
 
-    /// Reinicia el calendario: el próximo depósito será en `date` y de ahí cada `frequency`.
-    func reschedule(nextPayDate date: Date, frequency: PayFrequency) {
+    /// Reinicia el calendario desde `start`. Solo se suman los pagos de `today` en adelante:
+    /// los anteriores ya deberían estar en el saldo de la cuenta.
+    func reschedule(start: Date, frequency: PayFrequency, asOf today: Date = Date()) {
         self.frequency = frequency
-        startDate = Calendar.current.startOfDay(for: date)
-        postedCount = 0
+        startDate = Calendar.current.startOfDay(for: start)
+        postedCount = frequency.firstPayIndex(onOrAfter: today, from: startDate)
     }
 }
 

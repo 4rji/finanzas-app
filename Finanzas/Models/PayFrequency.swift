@@ -42,4 +42,14 @@ enum PayFrequency: String, CaseIterable, Identifiable {
             return calendar.date(byAdding: .day, value: target - 1, to: month) ?? month
         }
     }
+
+    /// Número del primer pago que cae en `date` o después.
+    func firstPayIndex(onOrAfter date: Date, from start: Date, calendar: Calendar = .current) -> Int {
+        let day = calendar.startOfDay(for: date)
+        var n = 0
+        while payDate(n, from: start, calendar: calendar) < day && n < 100_000 {
+            n += 1
+        }
+        return n
+    }
 }
