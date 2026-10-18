@@ -172,6 +172,12 @@ struct L10n {
     var promoEndDate: String { pick("Promo end date", "Vencimiento de la promoción") }
     var minimumPaymentOptional: String { pick("Minimum payment (optional)", "Pago mínimo (opcional)") }
     var minimumShort: String { pick("Minimum", "Mínimo") }
+    var transferFeeOptional: String { pick("Transfer fee (optional)", "Comisión por transferencia (opcional)") }
+    var transferFee: String { pick("Transfer fee", "Comisión por transferencia") }
+
+    func feeShort(percent value: Double, amount: Double) -> String {
+        pick("Fee ", "Comisión ") + percent(value) + " · " + money(amount)
+    }
     var timeLeft: String { pick("Time left", "Tiempo restante") }
     var suggestedPayment: String { pick("Suggested payment (approx.)", "Pago sugerido (aprox.)") }
     var promoExpired: String { pick("Promo expired", "Promoción vencida") }
@@ -272,6 +278,21 @@ struct L10n {
     var interest: String { pick("Interest", "Interés") }
     var principal: String { pick("Principal", "Capital") }
     var balance: String { pick("Balance", "Saldo") }
+
+    // MARK: Calendario
+
+    var dayTitle: String { pick("Day", "Día") }
+    var monthTitle: String { pick("Month", "Mes") }
+    var yearTitle: String { pick("Year", "Año") }
+
+    /// "Jan", "Feb"… o "Ene", "Feb"… según el idioma.
+    var shortMonthNames: [String] {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = locale
+        return calendar.shortStandaloneMonthSymbols.map { name in
+            String(name.replacingOccurrences(of: ".", with: "").prefix(3)).capitalized(with: locale)
+        }
+    }
 
     // MARK: Formato
 

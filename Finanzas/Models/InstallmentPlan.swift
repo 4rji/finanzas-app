@@ -5,7 +5,8 @@ import SwiftData
 /// - Compra a meses: `totalAmount` = monto de la compra, `months`, `monthlyPayment` (capturada,
 ///   no calculada), `startDate`. `annualRate` = 0 significa sin intereses.
 /// - Transferencia de saldo: `totalAmount` = saldo actual, `annualRate` = tasa promocional,
-///   `promoEndDate` = vencimiento de la promoción, `minimumPayment` = pago mínimo (opcional).
+///   `promoEndDate` = vencimiento de la promoción, `minimumPayment` = pago mínimo (opcional),
+///   `transferFeePercent` = comisión del banco por transferir (% del saldo, opcional).
 @Model
 final class InstallmentPlan {
     var kindRaw: String = "installments"
@@ -17,6 +18,7 @@ final class InstallmentPlan {
     var startDate: Date = Date()
     var promoEndDate: Date = Date()
     var minimumPayment: Double = 0
+    var transferFeePercent: Double = 0
     var debt: Debt?
 
     init(kind: PlanKind) {
@@ -58,6 +60,9 @@ final class InstallmentPlan {
             return totalAmount
         }
     }
+
+    /// Comisión por transferir: `transferFeePercent` % del saldo transferido.
+    var transferFee: Double { totalAmount * transferFeePercent / 100 }
 
     func transferEstimate(asOf date: Date = Date()) -> TransferEstimate {
         TransferEstimate(

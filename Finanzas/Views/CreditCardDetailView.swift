@@ -138,6 +138,9 @@ private struct InstallmentRow: View {
                 .foregroundStyle(.orange)
         } else {
             caption([t.dueShort + " " + t.date(plan.promoEndDate), t.monthsLeftShort(estimate.paymentsLeft), rateText])
+            if plan.transferFee > 0 {
+                caption([t.feeShort(percent: plan.transferFeePercent, amount: plan.transferFee)])
+            }
             if let suggested = estimate.suggestedPayment {
                 caption(
                     [t.suggestedShort(suggested)]

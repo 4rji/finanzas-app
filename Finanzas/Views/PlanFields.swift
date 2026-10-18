@@ -11,6 +11,7 @@ struct PlanDraft {
     var startDate = Date()
     var promoEndDate = Calendar.current.date(byAdding: .month, value: 12, to: Date()) ?? Date()
     var minimumText = ""
+    var feeText = ""
 
     init() {}
 
@@ -24,12 +25,15 @@ struct PlanDraft {
         startDate = plan.startDate
         promoEndDate = plan.promoEndDate
         minimumText = editText(plan.minimumPayment)
+        feeText = editText(plan.transferFeePercent)
     }
 
     var amount: Double { parseDecimal(amountText) }
     var monthly: Double { parseDecimal(monthlyText) }
     var rate: Double { parseDecimal(rateText) }
     var minimum: Double { parseDecimal(minimumText) }
+    var feePercent: Double { parseDecimal(feeText) }
+    var transferFee: Double { amount * feePercent / 100 }
 
     var isValid: Bool {
         switch kind {
@@ -65,6 +69,7 @@ struct PlanDraft {
         case .balanceTransfer:
             plan.promoEndDate = promoEndDate
             plan.minimumPayment = minimum
+            plan.transferFeePercent = feePercent
         }
     }
 }
@@ -117,7 +122,7 @@ struct PlanFields: View {
         }
         DecimalField(title: t.monthlyPayment, text: $draft.monthlyText, prefix: t.currencySymbol)
         DecimalField(title: t.annualRate, text: $draft.rateText, suffix: "%")
-        DatePicker(t.startDate, selection: $draft.startDate, displayedComponents: .date)
+        DateField(title: t.startDate, date: $draft.startDate)
     }
 
     @ViewBuilder
@@ -125,7 +130,8 @@ struct PlanFields: View {
         TextRow(title: t.descriptionOptional, text: $draft.concept, prompt: t.transferPlaceholder)
         DecimalField(title: t.transferBalance, text: $draft.amountText, prefix: t.currencySymbol)
         DecimalField(title: t.promoRate, text: $draft.rateText, suffix: "%")
-        DatePicker(t.promoEndDate, selection: $draft.promoEndDate, displayedComponents: .date)
+        DecimalField(title: t.transferFeeOptional, text: $draft.feeText, suffix: "%")
+        DateField(title: t.promoEndDate, date: $draft.promoEndDate)
         DecimalField(title: t.minimumPaymentOptional, text: $draft.minimumText, prefix: t.currencySymbol)
     }
 
@@ -139,6 +145,9 @@ struct PlanFields: View {
     private var transferPreview: some View {
         let estimate = draft.transferEstimate
 
+        if draft.transferFee > 0 {
+            LabeledContent(t.transferFee, value: t.money(draft.transferFee))
+        }
         if estimate.isExpired {
             Label(t.promoExpired, systemImage: "exclamationmark.triangle")
                 .foregroundStyle(.orange)
