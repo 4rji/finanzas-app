@@ -14,7 +14,7 @@ struct FinanzasApp: App {
             //    INFOPLIST_FILE[sdk=iphoneos*] / [sdk=iphonesimulator*] = Config/Info-iOS.plist.
             // 2. Cambiar `.none` por `.automatic` aquí abajo.
             container = try ModelContainer(
-                for: Debt.self, InstallmentPlan.self, Income.self,
+                for: Debt.self, InstallmentPlan.self, Account.self, RecurringIncome.self, Movement.self,
                 configurations: ModelConfiguration("Finanzas", cloudKitDatabase: .none)
             )
         } catch {

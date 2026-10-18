@@ -20,6 +20,10 @@ final class Debt {
     @Relationship(deleteRule: .cascade, inverse: \InstallmentPlan.debt)
     var plans: [InstallmentPlan]? = []
 
+    /// Pagos hechos desde una cuenta. Si se borra la deuda, los pagos se quedan en el historial.
+    @Relationship(deleteRule: .nullify, inverse: \Movement.debt)
+    var payments: [Movement]? = []
+
     init(name: String, kind: DebtKind) {
         self.name = name
         self.kindRaw = kind.rawValue
@@ -91,6 +95,23 @@ final class Debt {
 
     var totalOwed: Double {
         kind == .creditCard ? balance + installmentsRemaining : balance
+    }
+
+    // MARK: Pagos
+
+    /// Cuánto baja `balance` con un pago de `amount`:
+    /// - Tarjeta: se resta del revolvente. Si `includesInstallments`, el pago primero cubre las
+    ///   mensualidades a meses, que ya bajan solas cada mes y no deben restarse dos veces.
+    /// - Préstamo: solo lo que va a capital (pago − interés del mes).
+    func balanceReduction(forPayment amount: Double, includesInstallments: Bool) -> Double {
+        let reduction: Double
+        switch kind {
+        case .creditCard:
+            reduction = includesInstallments ? amount - installmentsMonthly : amount
+        case .mortgage, .studentLoan:
+            reduction = amount - amortization.interestThisMonth
+        }
+        return min(max(reduction, 0), balance)
     }
 }
 

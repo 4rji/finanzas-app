@@ -279,49 +279,49 @@ struct L10n {
     var principal: String { pick("Principal", "Capital") }
     var balance: String { pick("Balance", "Saldo") }
 
-    // MARK: Ingresos
+    // MARK: Cuentas e ingresos
 
-    var income: String { pick("Income", "Ingresos") }
-    var noIncomeTitle: String { pick("No income yet", "Aún no hay ingresos") }
-    var noIncomeMessage: String {
-        pick("Use the + button to add your salary or an extra income.",
-             "Usa el botón + para agregar tu sueldo o un ingreso extra.")
+    var accounts: String { pick("Accounts", "Cuentas") }
+    var account: String { pick("Account", "Cuenta") }
+    var history: String { pick("History", "Historial") }
+    var noAccountsTitle: String { pick("No accounts yet", "Aún no hay cuentas") }
+    var noAccountsMessage: String {
+        pick("Add your checking account with its current balance. Deposits and payments will keep it up to date.",
+             "Agrega tu cuenta de cheques con su saldo actual. Los depósitos y pagos lo irán actualizando.")
     }
+    var addAccount: String { pick("Add account", "Agregar cuenta") }
+    var addAccountHint: String { pick("Add your checking account", "Agrega tu cuenta de cheques") }
+    var accountNamePlaceholder: String { pick("e.g. Checking", "ej. Cheques") }
+    var accountBalance: String { pick("Current balance", "Saldo actual") }
+    var accountFooter: String {
+        pick("Enter what you have today. Deposits, extra income and payments update it.",
+             "Escribe lo que tienes hoy. Los depósitos, ingresos extra y pagos lo van actualizando.")
+    }
+    var accountDeleteNote: String {
+        pick("Deleting the account also deletes its history and recurring income.",
+             "Eliminar la cuenta también borra su historial y sus ingresos recurrentes.")
+    }
+    var totalBalance: String { pick("Total balance", "Saldo total") }
+
+    func accountCount(_ n: Int) -> String {
+        if isSpanish { return n == 1 ? "1 cuenta" : "\(n) cuentas" }
+        return n == 1 ? "1 account" : "\(n) accounts"
+    }
+
+    var recurringIncome: String { pick("Recurring income", "Ingresos recurrentes") }
+    var recurringIncomeItem: String { pick("Recurring income", "Ingreso recurrente") }
+    var addRecurringIncome: String { pick("Add recurring income", "Agregar ingreso recurrente") }
+    var noRecurringIncome: String { pick("No recurring income", "Sin ingresos recurrentes") }
+    var incomeNamePlaceholder: String { pick("e.g. Salary", "ej. Sueldo") }
     var monthlyIncome: String { pick("Monthly income (approx.)", "Ingreso mensual (aprox.)") }
-    var perMonthApprox: String { pick("Per month, approx.", "Al mes, aprox.") }
-    var extrasThisMonth: String { pick("Extras this month", "Extras este mes") }
     var amount: String { pick("Amount", "Monto") }
     var amountPerPayment: String { pick("Amount per deposit", "Monto por depósito") }
     var howOften: String { pick("How often", "Cada cuánto") }
-    var dateReceived: String { pick("Date received", "Fecha en que lo recibiste") }
+    var nextDeposit: String { pick("Next deposit", "Próximo depósito") }
+    var dateLabel: String { pick("Date", "Fecha") }
     var recurringIncomeFooter: String {
-        pick("What you get each time. Extra income is added separately and doesn't change this amount.",
-             "Lo que te depositan cada vez. Los ingresos extra se agregan aparte y no cambian este monto.")
-    }
-    var extraIncomeFooter: String {
-        pick("One-time income, like a bonus or a sale. It doesn't change your recurring income.",
-             "Ingreso de una sola vez, como un bono o una venta. No cambia tu ingreso recurrente.")
-    }
-
-    func incomeKindName(_ kind: IncomeKind) -> String {
-        switch kind {
-        case .recurring: return pick("Recurring income", "Ingreso recurrente")
-        case .extra: return pick("Extra income", "Ingreso extra")
-        }
-    }
-
-    func incomeKindPlural(_ kind: IncomeKind) -> String {
-        switch kind {
-        case .recurring: return pick("Recurring", "Recurrentes")
-        case .extra: return "Extras"
-        }
-    }
-
-    func incomeNamePlaceholder(_ kind: IncomeKind) -> String {
-        switch kind {
-        case .recurring: return pick("e.g. Salary", "ej. Sueldo")
-        case .extra: return pick("e.g. Bonus", "ej. Bono")
-        }
+        pick("It's added to your account automatically on each deposit date. Extra income is added separately.",
+             "Se suma solo a tu cuenta en cada fecha de depósito. Los ingresos extra se agregan aparte.")
     }
 
     func frequencyName(_ frequency: PayFrequency) -> String {
@@ -335,6 +335,68 @@ struct L10n {
 
     func approxPerMonth(_ value: Double) -> String {
         "≈ " + perMonth(value)
+    }
+
+    func incomePerMonthShort(_ value: Double) -> String {
+        pick("Income ", "Ingreso ") + approxPerMonth(value)
+    }
+
+    var extraIncome: String { pick("Extra income", "Ingreso extra") }
+    var addExtraIncome: String { pick("Add extra income", "Agregar ingreso extra") }
+    var extraIncomePlaceholder: String { pick("e.g. Bonus", "ej. Bono") }
+    var extraIncomeFooter: String {
+        pick("One-time income, like a bonus or a sale. It doesn't change your recurring income.",
+             "Ingreso de una sola vez, como un bono o una venta. No cambia tu ingreso recurrente.")
+    }
+    var depositFooter: String {
+        pick("Changing this deposit doesn't affect the next ones.",
+             "Cambiar este depósito no afecta los siguientes.")
+    }
+
+    var historyHint: String {
+        pick("Deposits, extra income and payments are listed in History.",
+             "Los depósitos, ingresos extra y pagos se ven en Historial.")
+    }
+    var noMovementsTitle: String { pick("No movements yet", "Aún no hay movimientos") }
+    var noMovementsMessage: String {
+        pick("Deposits, extra income and payments will show up here.",
+             "Aquí aparecerán los depósitos, ingresos extra y pagos.")
+    }
+
+    func movementKindName(_ kind: MovementKind) -> String {
+        switch kind {
+        case .deposit: return pick("Deposit", "Depósito")
+        case .extra: return extraIncome
+        case .payment: return payment
+        }
+    }
+
+    /// "+$1,200.00" o "−$500.00".
+    func signedMoney(_ value: Double) -> String {
+        (value < 0 ? "−" : "+") + money(abs(value))
+    }
+
+    // MARK: Pagos
+
+    var pay: String { pick("Pay", "Pagar") }
+    var recordPayment: String { pick("Pay a card or loan", "Pagar tarjeta o crédito") }
+    var debt: String { pick("Debt", "Deuda") }
+    var needsAccount: String { pick("Add an account first.", "Primero agrega una cuenta.") }
+    var debtReduction: String { pick("Debt goes down by", "La deuda baja") }
+    var debtBalanceAfter: String { pick("Debt after the payment", "Deuda después del pago") }
+    var accountBalanceAfter: String { pick("Account balance after", "Saldo de la cuenta después") }
+
+    func includesInstallments(_ value: Double) -> String {
+        pick("Includes installment payments", "Incluye mensualidades a meses") + " (" + money(value) + ")"
+    }
+
+    var cardPaymentFooter: String {
+        pick("It's subtracted from the revolving balance. Installment payments already go down on their own each month, so they aren't subtracted twice.",
+             "Se resta del saldo revolvente. Las mensualidades a meses ya bajan solas cada mes, así que no se restan dos veces.")
+    }
+    var loanPaymentFooter: String {
+        pick("Only the part that goes to principal lowers the balance (payment − this month's interest, approx.).",
+             "Solo la parte que va a capital baja el saldo (pago − interés del mes, aprox.).")
     }
 
     // MARK: Calendario
@@ -379,6 +441,12 @@ struct L10n {
 
     func monthYear(_ date: Date) -> String {
         date.formatted(.dateTime.month(.abbreviated).year().locale(locale))
+    }
+
+    /// "Octubre de 2026" / "October 2026".
+    func monthYearLong(_ date: Date) -> String {
+        let text = date.formatted(.dateTime.month(.wide).year().locale(locale))
+        return text.prefix(1).uppercased(with: locale) + text.dropFirst()
     }
 }
 
