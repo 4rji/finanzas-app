@@ -14,6 +14,4 @@ enum DebtKind: String, CaseIterable, Identifiable, Codable {
         case .studentLoan: return "graduationcap"
         }
     }
-
-    var isLoan: Bool { self != .creditCard }
 }

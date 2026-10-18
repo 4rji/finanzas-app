@@ -174,6 +174,7 @@ struct L10n {
     }
 
     var tableMonth: String { pick("Month", "Mes") }
+    var payment: String { pick("Payment", "Pago") }
     var interest: String { pick("Interest", "Interés") }
     var principal: String { pick("Principal", "Capital") }
     var balance: String { pick("Balance", "Saldo") }
@@ -204,7 +205,7 @@ struct L10n {
     }
 
     func monthYear(_ date: Date) -> String {
-        date.formatted(.dateTime.month(.abbreviated).year(.twoDigits).locale(locale))
+        date.formatted(.dateTime.month(.abbreviated).year().locale(locale))
     }
 }
 

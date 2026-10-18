@@ -1,9 +1,7 @@
 import SwiftUI
-import SwiftData
 
 struct CreditCardDetailView: View {
     @Environment(\.l10n) private var t
-    @Environment(\.modelContext) private var context
     let debt: Debt
 
     @State private var addingPlan = false
@@ -42,11 +40,8 @@ struct CreditCardDetailView: View {
                     .buttonStyle(.plain)
                     .contextMenu {
                         Button(t.edit) { editingPlan = plan }
-                        Button(t.delete, role: .destructive) { deletePlan(plan) }
+                        Button(t.delete, role: .destructive) { debt.deletePlan(plan) }
                     }
-                }
-                .onDelete { offsets in
-                    for index in offsets { deletePlan(plans[index]) }
                 }
                 Button {
                     addingPlan = true
@@ -58,6 +53,7 @@ struct CreditCardDetailView: View {
             } footer: {
                 if !plans.isEmpty {
                     Text(t.installmentsFooter(balance: debt.installmentsRemaining, monthly: debt.installmentsMonthly))
+                        .foregroundStyle(.secondary)
                 }
             }
         }
@@ -68,12 +64,6 @@ struct CreditCardDetailView: View {
         .sheet(item: $editingPlan) { plan in
             InstallmentFormView(debt: debt, plan: plan)
         }
-    }
-
-    private func deletePlan(_ plan: InstallmentPlan) {
-        debt.plans?.removeAll { $0.persistentModelID == plan.persistentModelID }
-        context.delete(plan)
-        try? context.save()
     }
 }
 

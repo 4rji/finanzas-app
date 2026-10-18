@@ -1,5 +1,60 @@
 import SwiftUI
 
+/// Hoja con formulario y botones Cancelar / Guardar abajo, al estilo macOS.
+/// Esc cancela y Enter guarda.
+struct FormSheet<Content: View>: View {
+    @Environment(\.l10n) private var t
+    @Environment(\.dismiss) private var dismiss
+
+    let canSave: Bool
+    let onSave: () -> Void
+    let onDelete: (() -> Void)?
+    let content: Content
+
+    init(
+        canSave: Bool = true,
+        onSave: @escaping () -> Void,
+        onDelete: (() -> Void)? = nil,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.canSave = canSave
+        self.onSave = onSave
+        self.onDelete = onDelete
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Form {
+                content
+            }
+            .formStyle(.grouped)
+
+            Divider()
+
+            HStack {
+                if let onDelete {
+                    Button(t.delete, role: .destructive) {
+                        onDelete()
+                        dismiss()
+                    }
+                }
+                Spacer()
+                Button(t.cancel) { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button(t.save) {
+                    onSave()
+                    dismiss()
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(!canSave)
+            }
+            .padding()
+        }
+        .frame(minWidth: 460, minHeight: 420)
+    }
+}
+
 /// Fila de formulario con título a la izquierda y campo de texto a la derecha.
 struct TextRow: View {
     let title: String
@@ -31,7 +86,6 @@ struct DecimalField: View {
                 TextField(title, text: $text, prompt: Text("0"))
                     .labelsHidden()
                     .multilineTextAlignment(.trailing)
-                    .decimalKeyboard()
                 if let suffix {
                     Text(suffix).foregroundStyle(.secondary)
                 }
@@ -40,43 +94,9 @@ struct DecimalField: View {
     }
 }
 
-extension View {
-    @ViewBuilder
-    func decimalKeyboard() -> some View {
-        #if os(iOS)
-        self.keyboardType(.decimalPad)
-        #else
-        self
-        #endif
-    }
-
-    /// Tamaño mínimo para las hojas (sheets) en macOS.
-    @ViewBuilder
-    func macSheetSize() -> some View {
-        #if os(macOS)
-        self.frame(minWidth: 460, minHeight: 420)
-        #else
-        self
-        #endif
-    }
-}
-
 extension Color {
-    static var groupedBackground: Color {
-        #if os(macOS)
-        return Color(nsColor: .windowBackgroundColor)
-        #else
-        return Color(uiColor: .systemGroupedBackground)
-        #endif
-    }
-
-    static var cardBackground: Color {
-        #if os(macOS)
-        return Color(nsColor: .controlBackgroundColor)
-        #else
-        return Color(uiColor: .secondarySystemGroupedBackground)
-        #endif
-    }
+    static let groupedBackground = Color(nsColor: .windowBackgroundColor)
+    static let cardBackground = Color(nsColor: .controlBackgroundColor)
 }
 
 /// Convierte texto como "1,234.50", "1.234,50", "$ 2500" o "18,5" a número.

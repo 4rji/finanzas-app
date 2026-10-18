@@ -14,11 +14,14 @@ struct DebtsListView: View {
     var body: some View {
         Group {
             if debts.isEmpty {
-                ContentUnavailableView(
-                    t.noDebtsTitle,
-                    systemImage: "tray",
-                    description: Text(t.noDebtsMessage)
-                )
+                ContentUnavailableView {
+                    Label(t.noDebtsTitle, systemImage: "tray")
+                } description: {
+                    Text(t.noDebtsMessage)
+                } actions: {
+                    Menu(t.add) { addMenuItems }
+                        .fixedSize()
+                }
             } else {
                 List {
                     Section {
@@ -45,9 +48,6 @@ struct DebtsListView: View {
                                         }
                                     }
                                 }
-                                .onDelete { offsets in
-                                    for index in offsets { delete(items[index]) }
-                                }
                             }
                         }
                     }
@@ -58,13 +58,7 @@ struct DebtsListView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
-                    ForEach(DebtKind.allCases) { kind in
-                        Button {
-                            newKind = kind
-                        } label: {
-                            Label(t.kindName(kind), systemImage: kind.systemImage)
-                        }
-                    }
+                    addMenuItems
                 } label: {
                     Label(t.add, systemImage: "plus")
                 }
@@ -72,6 +66,17 @@ struct DebtsListView: View {
         }
         .sheet(item: $newKind) { kind in
             DebtFormView(kind: kind)
+        }
+    }
+
+    @ViewBuilder
+    private var addMenuItems: some View {
+        ForEach(DebtKind.allCases) { kind in
+            Button {
+                newKind = kind
+            } label: {
+                Label(t.kindName(kind), systemImage: kind.systemImage)
+            }
         }
     }
 

@@ -46,6 +46,12 @@ final class Debt {
             .reduce(0) { $0 + $1.monthlyPayment }
     }
 
+    func deletePlan(_ plan: InstallmentPlan) {
+        plans?.removeAll { $0.persistentModelID == plan.persistentModelID }
+        modelContext?.delete(plan)
+        try? modelContext?.save()
+    }
+
     var revolvingMonthlyInterest: Double {
         balance * interestRate / 100 / 12
     }

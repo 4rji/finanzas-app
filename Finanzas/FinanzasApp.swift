@@ -22,21 +22,15 @@ struct FinanzasApp: App {
                 DashboardView()
             }
             .appLanguage()
-            #if os(macOS)
-            .frame(minWidth: 480, minHeight: 420)
-            #endif
+            .frame(minWidth: 520, minHeight: 440)
         }
         .modelContainer(container)
-        #if os(macOS)
-        .defaultSize(width: 760, height: 600)
-        #endif
+        .defaultSize(width: 820, height: 620)
 
-        #if os(macOS)
         Settings {
             SettingsView()
                 .frame(width: 420)
                 .appLanguage()
         }
-        #endif
     }
 }

@@ -5,7 +5,6 @@ import SwiftData
 struct DebtFormView: View {
     @Environment(\.l10n) private var t
     @Environment(\.modelContext) private var context
-    @Environment(\.dismiss) private var dismiss
 
     let kind: DebtKind
     let debt: Debt?
@@ -31,47 +30,32 @@ struct DebtFormView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    TextRow(title: t.name, text: $name, prompt: t.namePlaceholder(kind))
+        FormSheet(canSave: !trimmedName.isEmpty, onSave: save) {
+            Section {
+                TextRow(title: t.name, text: $name, prompt: t.namePlaceholder(kind))
 
-                    switch kind {
-                    case .creditCard:
-                        DecimalField(title: t.currentBalance, text: $balanceText, prefix: t.currencySymbol)
-                        DecimalField(title: t.interestRateApprox, text: $rateText, suffix: "%")
-                        Picker(t.paymentDueDay, selection: $dueDay) {
-                            ForEach(1...31, id: \.self) { day in
-                                Text(String(day)).tag(day)
-                            }
+                switch kind {
+                case .creditCard:
+                    DecimalField(title: t.currentBalance, text: $balanceText, prefix: t.currencySymbol)
+                    DecimalField(title: t.interestRateApprox, text: $rateText, suffix: "%")
+                    Picker(t.paymentDueDay, selection: $dueDay) {
+                        ForEach(1...31, id: \.self) { day in
+                            Text(String(day)).tag(day)
                         }
-                    case .mortgage, .studentLoan:
-                        DecimalField(title: t.remainingBalance, text: $balanceText, prefix: t.currencySymbol)
-                        DecimalField(title: t.interestRateApprox, text: $rateText, suffix: "%")
-                        DecimalField(title: t.monthlyPayment, text: $paymentText, prefix: t.currencySymbol)
                     }
-                } header: {
-                    Text(t.kindName(kind))
-                } footer: {
-                    Text(kind == .creditCard ? t.cardFormFooter : t.approxNote)
+                case .mortgage, .studentLoan:
+                    DecimalField(title: t.remainingBalance, text: $balanceText, prefix: t.currencySymbol)
+                    DecimalField(title: t.interestRateApprox, text: $rateText, suffix: "%")
+                    DecimalField(title: t.monthlyPayment, text: $paymentText, prefix: t.currencySymbol)
                 }
-            }
-            .formStyle(.grouped)
-            .navigationTitle(t.kindName(kind))
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(t.cancel) { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(t.save) {
-                        save()
-                        dismiss()
-                    }
-                    .disabled(trimmedName.isEmpty)
-                }
+            } header: {
+                Label(t.kindName(kind), systemImage: kind.systemImage)
+                    .font(.headline)
+            } footer: {
+                Text(kind == .creditCard ? t.cardFormFooter : t.approxNote)
+                    .foregroundStyle(.secondary)
             }
         }
-        .macSheetSize()
     }
 
     private func save() {

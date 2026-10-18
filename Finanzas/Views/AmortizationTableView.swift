@@ -5,45 +5,35 @@ struct AmortizationTableView: View {
     let rows: [Amortization.Row]
 
     var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
-                Section {
-                    ForEach(rows) { row in
-                        TableLine(columns: [
-                            t.monthYear(row.date),
-                            t.moneyWhole(row.interest),
-                            t.moneyWhole(row.principal),
-                            t.moneyWhole(row.balance),
-                        ])
-                        .background(row.id.isMultiple(of: 2) ? Color.secondary.opacity(0.07) : Color.clear)
-                    }
-                } header: {
-                    TableLine(columns: [t.tableMonth, t.interest, t.principal, t.balance], isHeader: true)
-                        .background(.bar)
-                }
+        Table(rows) {
+            TableColumn("#") { row in
+                Text(String(row.id))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+            .width(44)
+            TableColumn(t.tableMonth) { row in
+                Text(t.monthYear(row.date))
+            }
+            TableColumn(t.payment) { row in
+                amount(row.payment)
+            }
+            TableColumn(t.interest) { row in
+                amount(row.interest)
+            }
+            TableColumn(t.principal) { row in
+                amount(row.principal)
+            }
+            TableColumn(t.balance) { row in
+                amount(row.balance)
             }
         }
         .navigationTitle(t.amortizationTable)
     }
-}
 
-private struct TableLine: View {
-    let columns: [String]
-    var isHeader = false
-
-    var body: some View {
-        HStack(spacing: 8) {
-            ForEach(Array(columns.enumerated()), id: \.offset) { index, text in
-                Text(text)
-                    .frame(maxWidth: .infinity, alignment: index == 0 ? .leading : .trailing)
-            }
-        }
-        .font(isHeader ? Font.caption.weight(.semibold) : Font.callout)
-        .foregroundStyle(isHeader ? Color.secondary : Color.primary)
-        .monospacedDigit()
-        .lineLimit(1)
-        .minimumScaleFactor(0.7)
-        .padding(.horizontal)
-        .padding(.vertical, 8)
+    private func amount(_ value: Double) -> some View {
+        Text(t.money(value))
+            .monospacedDigit()
+            .frame(maxWidth: .infinity, alignment: .trailing)
     }
 }

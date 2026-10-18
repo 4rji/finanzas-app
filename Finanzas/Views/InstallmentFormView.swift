@@ -5,7 +5,6 @@ import SwiftData
 struct InstallmentFormView: View {
     @Environment(\.l10n) private var t
     @Environment(\.modelContext) private var context
-    @Environment(\.dismiss) private var dismiss
 
     let debt: Debt
     let plan: InstallmentPlan?
@@ -30,46 +29,31 @@ struct InstallmentFormView: View {
     private var rate: Double { parseDecimal(rateText) }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    TextRow(title: t.concept, text: $concept, prompt: t.conceptPlaceholder)
-                    DecimalField(title: t.totalAmount, text: $amountText, prefix: t.currencySymbol)
-                    Stepper(value: $months, in: 1...120) {
-                        Text(t.monthsCount(months))
-                    }
-                    DecimalField(title: t.annualRate, text: $rateText, suffix: "%")
-                    DatePicker(t.startDate, selection: $startDate, displayedComponents: .date)
-                } header: {
-                    Text(t.installmentsSection)
-                } footer: {
-                    Text(t.planRateFooter)
+        FormSheet(canSave: amount > 0, onSave: save, onDelete: plan == nil ? nil : delete) {
+            Section {
+                TextRow(title: t.concept, text: $concept, prompt: t.conceptPlaceholder)
+                DecimalField(title: t.totalAmount, text: $amountText, prefix: t.currencySymbol)
+                Stepper(value: $months, in: 1...120) {
+                    Text(t.monthsCount(months))
                 }
-
-                Section {
-                    LabeledContent(
-                        t.monthlyPayment,
-                        value: t.money(LoanMath.payment(principal: amount, annualRate: rate, months: months))
-                    )
-                    LabeledContent(t.endsOn, value: t.date(LoanMath.endDate(start: startDate, months: months)))
-                }
+                DecimalField(title: t.annualRate, text: $rateText, suffix: "%")
+                DatePicker(t.startDate, selection: $startDate, displayedComponents: .date)
+            } header: {
+                Label(t.installmentsSection, systemImage: "calendar")
+                    .font(.headline)
+            } footer: {
+                Text(t.planRateFooter)
+                    .foregroundStyle(.secondary)
             }
-            .formStyle(.grouped)
-            .navigationTitle(t.installmentsSection)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(t.cancel) { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(t.save) {
-                        save()
-                        dismiss()
-                    }
-                    .disabled(amount <= 0)
-                }
+
+            Section {
+                LabeledContent(
+                    t.monthlyPayment,
+                    value: t.money(LoanMath.payment(principal: amount, annualRate: rate, months: months))
+                )
+                LabeledContent(t.endsOn, value: t.date(LoanMath.endDate(start: startDate, months: months)))
             }
         }
-        .macSheetSize()
     }
 
     private func save() {
@@ -94,5 +78,9 @@ struct InstallmentFormView: View {
             debt.plans?.append(newPlan)
         }
         try? context.save()
+    }
+
+    private func delete() {
+        if let plan { debt.deletePlan(plan) }
     }
 }

@@ -4,9 +4,6 @@ import SwiftData
 struct DashboardView: View {
     @Environment(\.l10n) private var t
     @Query private var debts: [Debt]
-    #if os(iOS)
-    @State private var showingSettings = false
-    #endif
 
     private var totalDebt: Double {
         debts.reduce(0) { $0 + $1.totalOwed }
@@ -22,7 +19,7 @@ struct DashboardView: View {
                 }
                 .buttonStyle(.plain)
             }
-            .padding()
+            .padding(24)
             .frame(maxWidth: 640)
             .frame(maxWidth: .infinity)
         }
@@ -30,31 +27,11 @@ struct DashboardView: View {
         .navigationTitle(t.appName)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                #if os(macOS)
                 SettingsLink {
                     Label(t.settings, systemImage: "gearshape")
                 }
-                #else
-                Button {
-                    showingSettings = true
-                } label: {
-                    Label(t.settings, systemImage: "gearshape")
-                }
-                #endif
             }
         }
-        #if os(iOS)
-        .sheet(isPresented: $showingSettings) {
-            NavigationStack {
-                SettingsView()
-                    .toolbar {
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button(t.done) { showingSettings = false }
-                        }
-                    }
-            }
-        }
-        #endif
     }
 }
 
@@ -62,6 +39,8 @@ private struct DebtsSummaryCard: View {
     @Environment(\.l10n) private var t
     let total: Double
     let count: Int
+
+    @State private var hovering = false
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -87,7 +66,8 @@ private struct DebtsSummaryCard: View {
         }
         .padding(20)
         .background(Color.cardBackground, in: shape)
-        .overlay(shape.strokeBorder(Color.secondary.opacity(0.2), lineWidth: 0.5))
+        .overlay(shape.strokeBorder(Color.secondary.opacity(hovering ? 0.4 : 0.2), lineWidth: hovering ? 1 : 0.5))
         .contentShape(shape)
+        .onHover { hovering = $0 }
     }
 }
