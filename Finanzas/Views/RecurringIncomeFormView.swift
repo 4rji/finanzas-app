@@ -12,7 +12,7 @@ struct RecurringIncomeFormView: View {
     @State private var name: String
     @State private var amountText: String
     @State private var frequency: PayFrequency
-    @State private var nextDate: Date
+    @State private var startDate: Date
     @State private var account: Account?
 
     init(income: RecurringIncome? = nil) {
@@ -20,7 +20,7 @@ struct RecurringIncomeFormView: View {
         _name = State(initialValue: income?.name ?? "")
         _amountText = State(initialValue: editText(income?.amount ?? 0))
         _frequency = State(initialValue: income?.frequency ?? .weekly)
-        _nextDate = State(initialValue: income?.nextPayDate ?? Date())
+        _startDate = State(initialValue: income?.startDate ?? Date())
         _account = State(initialValue: income?.account)
     }
 
@@ -35,6 +35,19 @@ struct RecurringIncomeFormView: View {
         !trimmedName.isEmpty && amount > 0 && selectedAccount != nil
     }
 
+    private var scheduleChanged: Bool {
+        guard let income else { return true }
+        return frequency != income.frequency
+            || !Calendar.current.isDate(startDate, inSameDayAs: income.startDate)
+    }
+
+    /// Próximo pago calculado con la fecha de inicio y la frecuencia elegidas.
+    private var nextPayDate: Date {
+        if let income, !scheduleChanged { return income.nextPayDate }
+        let n = frequency.firstPayIndex(onOrAfter: Date(), from: startDate)
+        return frequency.payDate(n, from: startDate)
+    }
+
     var body: some View {
         FormSheet(canSave: canSave, onSave: save, onDelete: income == nil ? nil : delete) {
             Section {
@@ -45,7 +58,7 @@ struct RecurringIncomeFormView: View {
                         Text(t.frequencyName(option)).tag(option)
                     }
                 }
-                DateField(title: t.nextDeposit, date: $nextDate)
+                DateField(title: t.startDate, date: $startDate)
                 AccountPicker(accounts: accounts, selection: $account)
             } header: {
                 Label(t.recurringIncomeItem, systemImage: "repeat")
@@ -57,6 +70,7 @@ struct RecurringIncomeFormView: View {
             }
 
             Section {
+                LabeledContent(t.nextDeposit, value: t.date(nextPayDate))
                 LabeledContent(t.monthlyIncome, value: t.money(amount * frequency.paymentsPerMonth))
             }
         }
@@ -71,15 +85,13 @@ struct RecurringIncomeFormView: View {
             context.insert(target)
         }
 
-        let scheduleChanged = income == nil
-            || frequency != target.frequency
-            || !Calendar.current.isDate(nextDate, inSameDayAs: target.nextPayDate)
+        let reschedule = scheduleChanged
 
         target.name = trimmedName
         target.amount = amount
         target.account = selectedAccount
-        if scheduleChanged {
-            target.reschedule(nextPayDate: nextDate, frequency: frequency)
+        if reschedule {
+            target.reschedule(start: startDate, frequency: frequency)
         }
         try? context.save()
         RecurringDeposits.update(in: context)

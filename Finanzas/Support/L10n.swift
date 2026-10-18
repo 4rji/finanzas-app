@@ -320,8 +320,8 @@ struct L10n {
     var nextDeposit: String { pick("Next deposit", "Próximo depósito") }
     var dateLabel: String { pick("Date", "Fecha") }
     var recurringIncomeFooter: String {
-        pick("It's added to your account automatically on each deposit date. Extra income is added separately.",
-             "Se suma solo a tu cuenta en cada fecha de depósito. Los ingresos extra se agregan aparte.")
+        pick("Pick a day you got or will get paid (it can be in the past). The next dates are calculated from it, and each deposit is added to your account automatically from the next one on. Extra income is added separately.",
+             "Elige un día en que te pagaron o te van a pagar (puede ser pasado). Con eso se calculan las siguientes fechas, y cada depósito se suma solo a tu cuenta desde el próximo. Los ingresos extra se agregan aparte.")
     }
 
     func frequencyName(_ frequency: PayFrequency) -> String {
