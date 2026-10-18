@@ -127,6 +127,23 @@ struct DecimalField: View {
     }
 }
 
+/// Selector de cuenta. Solo aparece si hay más de una; sin selección se usa la primera.
+struct AccountPicker: View {
+    @Environment(\.l10n) private var t
+    let accounts: [Account]
+    @Binding var selection: Account?
+
+    var body: some View {
+        if accounts.count > 1 {
+            Picker(t.account, selection: Binding(get: { selection ?? accounts.first }, set: { selection = $0 })) {
+                ForEach(accounts) { account in
+                    Text(account.name).tag(Optional(account))
+                }
+            }
+        }
+    }
+}
+
 /// Porcentaje de crédito usado; naranja desde 70% y rojo desde 90%.
 struct UsageText: View {
     @Environment(\.l10n) private var t
