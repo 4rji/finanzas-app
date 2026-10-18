@@ -104,12 +104,8 @@ struct L10n {
     var balanceSection: String { pick("Balance", "Saldo") }
     var balanceTypeQuestion: String { pick("How is the balance?", "¿Cómo está el saldo?") }
     var balanceTypeFooter: String {
-        pick("Only the revolving balance accrues interest. Interest-free installments are tracked separately so they aren't counted twice.",
-             "Solo el saldo revolvente genera intereses. Los meses sin intereses se registran aparte para no sumarlos dos veces.")
-    }
-    var addMorePlansFooter: String {
-        pick("You can add more installment plans later from the card's detail.",
-             "Puedes agregar más compras a meses después desde el detalle de la tarjeta.")
+        pick("Only the revolving balance accrues interest. Installments and balance transfers are tracked separately so they aren't counted twice.",
+             "Solo el saldo revolvente genera intereses. Las compras a meses y transferencias se registran aparte para no sumarlas dos veces.")
     }
     var includedInBalance: String { pick("Already included in revolving balance", "Ya está incluida en el saldo revolvente") }
     var includedInBalanceFooter: String {
@@ -120,17 +116,54 @@ struct L10n {
     func balanceTypeName(_ type: CardBalanceType) -> String {
         switch type {
         case .revolving: return pick("Revolving", "Revolvente")
-        case .installments: return pick("Interest-free installments", "Meses sin intereses")
+        case .installments: return pick("Installments or balance transfer", "A meses o transferencia")
         case .both: return pick("Both", "Ambos")
         }
     }
 
-    var installmentsSection: String { pick("Installment plans", "Compras a meses") }
-    var noInstallments: String { pick("No installment plans", "Sin compras a meses") }
-    var addInstallment: String { pick("Add installment plan", "Agregar compra a meses") }
-    var installmentDefaultName: String { pick("Installment purchase", "Compra a meses") }
+    var installmentsSection: String { pick("Installments & balance transfers", "Compras a meses y transferencias") }
+    var noInstallments: String { pick("No installment plans or transfers", "Sin compras a meses ni transferencias") }
+    var addInstallment: String { pick("Add installment plan or transfer", "Agregar compra a meses o transferencia") }
+    var planType: String { pick("Type", "Tipo") }
     var concept: String { pick("Description", "Concepto") }
     var conceptPlaceholder: String { pick("e.g. Laptop", "ej. Laptop") }
+    var transferPlaceholder: String { pick("e.g. From Visa", "ej. Desde Visa") }
+
+    func planKindName(_ kind: PlanKind) -> String {
+        switch kind {
+        case .installments: return pick("Installment plan", "Compra a meses")
+        case .balanceTransfer: return pick("Balance transfer", "Transferencia de saldo")
+        }
+    }
+
+    // Transferencia de saldo
+    var transferBalance: String { pick("Transfer balance", "Saldo de la transferencia") }
+    var promoRate: String { pick("Promo rate", "Tasa promocional") }
+    var promoEndDate: String { pick("Promo end date", "Vencimiento de la promoción") }
+    var minimumPaymentOptional: String { pick("Minimum payment (optional)", "Pago mínimo (opcional)") }
+    var minimumShort: String { pick("Minimum", "Mínimo") }
+    var timeLeft: String { pick("Time left", "Tiempo restante") }
+    var suggestedPayment: String { pick("Suggested payment (approx.)", "Pago sugerido (aprox.)") }
+    var promoExpired: String { pick("Promo expired", "Promoción vencida") }
+    var transferFooter: String {
+        pick("The suggested payment is only an approximate reference to pay off the balance before the promo ends. It isn't required.",
+             "El pago sugerido es solo una referencia aproximada para liquidar antes del vencimiento. No es obligatorio.")
+    }
+
+    func suggestedShort(_ value: Double) -> String {
+        pick("Suggested: ", "Sugerido: ") + perMonth(value)
+    }
+
+    func leftoverPayingMinimum(_ value: Double) -> String {
+        isSpanish
+            ? "Pagando solo el mínimo quedarían \(money(value)) al vencimiento"
+            : "Paying only the minimum leaves \(money(value)) when the promo ends"
+    }
+
+    func monthsLeftShort(_ n: Int) -> String {
+        if isSpanish { return n == 1 ? "falta 1 mes" : "faltan \(n) meses" }
+        return n == 1 ? "1 month left" : "\(n) months left"
+    }
     var totalAmount: String { pick("Total amount", "Monto total") }
     var annualRate: String { pick("Annual interest rate", "Tasa de interés anual") }
     var startDate: String { pick("Start date", "Fecha de inicio") }
@@ -182,7 +215,14 @@ struct L10n {
 
     var remainingBalance: String { pick("Remaining balance", "Saldo restante") }
     var estimateSection: String { pick("Approximate estimate", "Estimación aproximada") }
-    var interestThisMonth: String { pick("Interest this month", "Interés este mes") }
+    var monthlyInterestFooter: String {
+        pick("Balance × rate ÷ 12. It goes down a little each month as the balance drops.",
+             "Saldo × tasa ÷ 12. Baja un poco cada mes conforme baja el saldo.")
+    }
+
+    func interestShort(_ value: Double) -> String {
+        pick("Interest ", "Interés ") + perMonth(value)
+    }
     var principalThisMonth: String { pick("Principal this month", "Abono a capital este mes") }
     var timeToPayoff: String { pick("Time to pay off", "Tiempo para liquidar") }
     var payoffDate: String { pick("Estimated payoff date", "Fecha estimada de liquidación") }

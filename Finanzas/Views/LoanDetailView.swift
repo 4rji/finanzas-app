@@ -10,7 +10,7 @@ struct LoanDetailView: View {
         let rows = amortization.schedule()
 
         Form {
-            Section(t.summary) {
+            Section {
                 LabeledContent(t.remainingBalance) {
                     Text(t.money(debt.balance))
                         .fontWeight(.semibold)
@@ -18,6 +18,16 @@ struct LoanDetailView: View {
                 }
                 LabeledContent(t.interestRateApprox, value: t.percent(debt.interestRate))
                 LabeledContent(t.monthlyPayment, value: t.money(debt.monthlyPayment))
+                LabeledContent(t.monthlyInterestApprox) {
+                    Text(t.money(amortization.interestThisMonth))
+                        .fontWeight(.semibold)
+                        .monospacedDigit()
+                }
+            } header: {
+                Text(t.summary)
+            } footer: {
+                Text(t.monthlyInterestFooter)
+                    .foregroundStyle(.secondary)
             }
 
             Section {
@@ -25,7 +35,6 @@ struct LoanDetailView: View {
                     Label(t.paymentTooLow, systemImage: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
                 }
-                LabeledContent(t.interestThisMonth, value: t.money(amortization.interestThisMonth))
                 LabeledContent(t.principalThisMonth, value: t.money(amortization.principalThisMonth))
                 if let last = rows.last {
                     LabeledContent(t.timeToPayoff, value: t.duration(months: rows.count))

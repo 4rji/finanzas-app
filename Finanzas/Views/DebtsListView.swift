@@ -115,7 +115,11 @@ private struct DebtRow: View {
         case .creditCard:
             return t.dueShort + " " + t.shortDate(debt.nextDueDate)
         case .mortgage, .studentLoan:
-            return t.percent(debt.interestRate) + " · " + t.perMonth(debt.monthlyPayment)
+            return [
+                t.percent(debt.interestRate),
+                t.perMonth(debt.monthlyPayment),
+                t.interestShort(debt.amortization.interestThisMonth),
+            ].joined(separator: " · ")
         }
     }
 }

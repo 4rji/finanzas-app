@@ -26,11 +26,7 @@ struct DebtFormView: View {
 
     // Solo tarjeta nueva: saldo revolvente y/o meses sin intereses.
     @State private var balanceType: CardBalanceType = .revolving
-    @State private var planConcept = ""
-    @State private var planAmountText = ""
-    @State private var planMonthlyText = ""
-    @State private var planMonths = 12
-    @State private var planStart = Date()
+    @State private var planDraft = PlanDraft()
 
     init(kind: DebtKind, debt: Debt? = nil) {
         self.kind = kind
@@ -49,14 +45,8 @@ struct DebtFormView: View {
     private var isNewCard: Bool { debt == nil && kind == .creditCard }
     private var includesPlan: Bool { isNewCard && balanceType != .revolving }
 
-    private var planMonthly: Double { parseDecimal(planMonthlyText) }
-    private var planPending: Double {
-        let remaining = planMonths - LoanMath.paymentsMade(start: planStart, months: planMonths)
-        return LoanMath.remainingBalance(payment: planMonthly, annualRate: 0, remainingMonths: remaining)
-    }
-
     private var canSave: Bool {
-        !trimmedName.isEmpty && (!includesPlan || planMonthly > 0)
+        !trimmedName.isEmpty && (!includesPlan || planDraft.isValid)
     }
 
     var body: some View {
@@ -117,21 +107,7 @@ struct DebtFormView: View {
             }
 
             if balanceType != .revolving {
-                Section {
-                    TextRow(title: t.concept, text: $planConcept, prompt: t.conceptPlaceholder)
-                    DecimalField(title: t.totalAmount, text: $planAmountText, prefix: t.currencySymbol)
-                    Stepper(value: $planMonths, in: 1...120) {
-                        Text(t.monthsCount(planMonths))
-                    }
-                    DecimalField(title: t.monthlyPayment, text: $planMonthlyText, prefix: t.currencySymbol)
-                    DatePicker(t.startDate, selection: $planStart, displayedComponents: .date)
-                    LabeledContent(t.remainingBalance, value: t.money(planPending))
-                } header: {
-                    Text(t.balanceTypeName(.installments))
-                } footer: {
-                    Text(t.addMorePlansFooter)
-                        .foregroundStyle(.secondary)
-                }
+                PlanFields(draft: $planDraft)
             }
         }
     }
@@ -167,15 +143,9 @@ struct DebtFormView: View {
             target.paymentDueDay = dueDay
             target.balance = (isNewCard && balanceType == .installments) ? 0 : parseDecimal(balanceText)
             if includesPlan {
-                let plan = InstallmentPlan(
-                    concept: planConcept.trimmingCharacters(in: .whitespacesAndNewlines),
-                    totalAmount: parseDecimal(planAmountText),
-                    months: planMonths,
-                    monthlyPayment: planMonthly,
-                    annualRate: 0,
-                    startDate: planStart
-                )
+                let plan = InstallmentPlan(kind: planDraft.kind)
                 context.insert(plan)
+                planDraft.apply(to: plan)
                 if target.plans == nil { target.plans = [] }
                 target.plans?.append(plan)
             }

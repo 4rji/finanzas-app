@@ -42,7 +42,7 @@ final class Debt {
 
     var installmentsMonthly: Double {
         installmentPlans
-            .filter { $0.remainingMonths() > 0 }
+            .filter { $0.kind == .installments && $0.remainingMonths() > 0 }
             .reduce(0) { $0 + $1.monthlyPayment }
     }
 
