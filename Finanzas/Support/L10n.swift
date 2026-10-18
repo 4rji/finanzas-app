@@ -29,6 +29,10 @@ enum AppLanguage: String, CaseIterable, Identifiable {
 /// Textos de la app en inglés y español.
 struct L10n {
     let language: AppLanguage
+    /// Saldos ocultos con el botón del ojo: todos los montos se muestran como asteriscos.
+    var hidesAmounts = false
+
+    static let hidesAmountsKey = "hidesAmounts"
 
     var locale: Locale { language.locale }
     private var isSpanish: Bool { language == .spanish }
@@ -50,6 +54,8 @@ struct L10n {
     var settings: String { pick("Settings", "Configuración") }
     var languageTitle: String { pick("Language", "Idioma") }
     var textSizeTitle: String { pick("Text size", "Tamaño de letra") }
+    var hideAmounts: String { pick("Hide amounts", "Ocultar saldos") }
+    var showAmounts: String { pick("Show amounts", "Mostrar saldos") }
     var showOnHome: String { pick("Show on home screen", "Mostrar en inicio") }
     var showOnHomeFooter: String { pick("Hide the categories you don't need.", "Oculta las categorías que no necesites.") }
     var everythingHidden: String { pick("Everything is hidden", "Todo está oculto") }
@@ -585,12 +591,16 @@ struct L10n {
     var currencySymbol: String { Locale.current.currencySymbol ?? "$" }
 
     func money(_ value: Double) -> String {
-        value.formatted(.currency(code: currencyCode).locale(locale))
+        guard !hidesAmounts else { return hiddenAmount }
+        return value.formatted(.currency(code: currencyCode).locale(locale))
     }
 
     func moneyWhole(_ value: Double) -> String {
-        value.formatted(.currency(code: currencyCode).precision(.fractionLength(0)).locale(locale))
+        guard !hidesAmounts else { return hiddenAmount }
+        return value.formatted(.currency(code: currencyCode).precision(.fractionLength(0)).locale(locale))
     }
+
+    private var hiddenAmount: String { "*****" }
 
     func percent(_ value: Double) -> String {
         value.formatted(.number.precision(.fractionLength(0...2)).locale(locale)) + "%"

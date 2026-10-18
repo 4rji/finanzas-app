@@ -9,6 +9,7 @@ struct DashboardView: View {
     @AppStorage(HomeSection.investments.storageKey) private var showInvestments = true
     @AppStorage(HomeSection.debts.storageKey) private var showDebts = true
     @AppStorage(HomeSection.assets.storageKey) private var showAssets = true
+    @AppStorage(L10n.hidesAmountsKey) private var hidesAmounts = false
     @Query private var debts: [Debt]
     @Query(sort: \Account.createdAt) private var allAccounts: [Account]
     @Query private var incomes: [RecurringIncome]
@@ -109,6 +110,13 @@ struct DashboardView: View {
         .background(Color.groupedBackground)
         .navigationTitle(t.appName)
         .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    hidesAmounts.toggle()
+                } label: {
+                    Label(hidesAmounts ? t.showAmounts : t.hideAmounts, systemImage: hidesAmounts ? "eye" : "eye.slash")
+                }
+            }
             ToolbarItem(placement: .primaryAction) {
                 #if os(macOS)
                 SettingsLink {
