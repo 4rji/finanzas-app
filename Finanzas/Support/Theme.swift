@@ -20,15 +20,15 @@ enum ThemeTint {
         }
     }
 
-    /// Degradado de las tarjetas de color.
+    /// Degradado de las tarjetas de color, con profundidad suficiente para texto blanco.
     func gradient(_ scheme: ColorScheme) -> [Color] {
         let dark = scheme == .dark
         switch self {
-        case .mint: return dark ? [Color(hex: 0x1D6F55), Color(hex: 0x3BAA80)] : [Color(hex: 0x34B37F), Color(hex: 0x7ED6AE)]
-        case .teal: return dark ? [Color(hex: 0x17626A), Color(hex: 0x2F9C9A)] : [Color(hex: 0x2A9FA6), Color(hex: 0x7FD3D1)]
-        case .sage: return dark ? [Color(hex: 0x4A6634), Color(hex: 0x7D9F55)] : [Color(hex: 0x86AC5E), Color(hex: 0xC3DB97)]
-        case .peach: return dark ? [Color(hex: 0x87493A), Color(hex: 0xC07A5E)] : [Color(hex: 0xE8906F), Color(hex: 0xF4C09F)]
-        case .sand: return dark ? [Color(hex: 0x6E5A2E), Color(hex: 0xA88B4E)] : [Color(hex: 0xC9A45C), Color(hex: 0xE8D29A)]
+        case .mint: return dark ? [Color(hex: 0x164D3D), Color(hex: 0x23634B)] : [Color(hex: 0x165440), Color(hex: 0x22694D)]
+        case .teal: return dark ? [Color(hex: 0x17454D), Color(hex: 0x225D65)] : [Color(hex: 0x184D57), Color(hex: 0x23656C)]
+        case .sage: return dark ? [Color(hex: 0x34472A), Color(hex: 0x4C5E36)] : [Color(hex: 0x40532F), Color(hex: 0x526437)]
+        case .peach: return dark ? [Color(hex: 0x6F3C32), Color(hex: 0x8C4938)] : [Color(hex: 0x783D32), Color(hex: 0x984934)]
+        case .sand: return dark ? [Color(hex: 0x59472A), Color(hex: 0x73582D)] : [Color(hex: 0x624D2C), Color(hex: 0x7B5B29)]
         }
     }
 }
@@ -89,7 +89,7 @@ extension Color {
 
 // MARK: - Fondo
 
-/// Fondo de todas las pantallas: un tono base con manchas de luz verde y aqua.
+/// Fondo de todas las pantallas: neutros suaves con un matiz verde discreto.
 struct AppBackground: View {
     @Environment(\.colorScheme) private var scheme
 
@@ -97,18 +97,18 @@ struct AppBackground: View {
         let dark = scheme == .dark
 
         ZStack {
-            Color(hex: dark ? 0x07120E : 0xEFF6F1)
-            RadialGradient(
-                colors: [Color(hex: dark ? 0x1B5240 : 0xBFE8D3, opacity: dark ? 0.85 : 0.9), .clear],
-                center: .topTrailing, startRadius: 0, endRadius: 560
+            LinearGradient(
+                colors: dark
+                    ? [Color(hex: 0x101613), Color(hex: 0x17211C)]
+                    : [Color(hex: 0xF6F8F5), Color(hex: 0xEEF3EF)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
             RadialGradient(
-                colors: [Color(hex: dark ? 0x123E40 : 0xCDEBEA, opacity: 0.9), .clear],
-                center: .bottomLeading, startRadius: 0, endRadius: 600
-            )
-            RadialGradient(
-                colors: [Color(hex: dark ? 0x2C4A22 : 0xE6F0D2, opacity: 0.6), .clear],
-                center: UnitPoint(x: 0.15, y: 0.2), startRadius: 0, endRadius: 320
+                colors: [Color(hex: dark ? 0x386F56 : 0xA8CCB5, opacity: dark ? 0.14 : 0.1), .clear],
+                center: .topTrailing,
+                startRadius: 0,
+                endRadius: 760
             )
         }
         .ignoresSafeArea()
@@ -120,7 +120,7 @@ struct RowBackground: View {
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        scheme == .dark ? Color.white.opacity(0.07) : Color.white.opacity(0.72)
+        scheme == .dark ? Color.white.opacity(0.055) : Color.white.opacity(0.88)
     }
 }
 

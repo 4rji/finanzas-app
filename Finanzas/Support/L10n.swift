@@ -81,6 +81,18 @@ struct L10n {
     var close: String { pick("Close", "Cerrar") }
     var showAsGrid: String { pick("Grid", "Cuadrícula") }
     var showAsCarousel: String { pick("Carousel", "Carrusel") }
+    var financialOverview: String { pick("Your money at a glance", "Tu dinero, de un vistazo") }
+    var previousSection: String { pick("Previous section", "Sección anterior") }
+    var nextSection: String { pick("Next section", "Siguiente sección") }
+
+    func carouselPosition(_ position: Int, total: Int) -> String {
+        pick("Section \(position) of \(total)", "Sección \(position) de \(total)")
+    }
+
+    /// Nombres breves para que las cuatro pestañas sigan siendo legibles en pantallas pequeñas.
+    func homeSectionTabName(_ section: HomeSection) -> String {
+        section == .investments ? pick("Investments", "Inversiones") : homeSectionName(section)
+    }
 
     func homeSectionName(_ section: HomeSection) -> String {
         switch section {

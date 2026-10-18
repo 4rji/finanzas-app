@@ -6,6 +6,8 @@ struct DashboardView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.textScale) private var scale
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage(HomeSection.accounts.storageKey) private var showAccounts = true
     @AppStorage(HomeSection.investments.storageKey) private var showInvestments = true
     @AppStorage(HomeSection.debts.storageKey) private var showDebts = true
@@ -34,11 +36,17 @@ struct DashboardView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                HStack {
-                    Text(t.weekdayDate(Date()))
-                        .sectionTitle()
-                    Spacer()
+            VStack(alignment: .leading, spacing: 24) {
+                HStack(alignment: .center, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(t.weekdayDate(Date()))
+                            .appFont(.subheadline, weight: .medium)
+                            .foregroundStyle(.secondary)
+                        Text(t.financialOverview)
+                            .font(.system(size: 28 * scale, weight: .bold, design: .rounded))
+                            .tracking(-0.8)
+                    }
+                    Spacer(minLength: 0)
                     if visibleSections.count > 1 {
                         layoutButton
                     }
@@ -65,8 +73,10 @@ struct DashboardView: View {
                     .buttonStyle(PressableStyle())
                 }
             }
-            .padding(24)
-            .frame(maxWidth: 760)
+            .padding(.horizontal, 24)
+            .padding(.top, 24)
+            .padding(.bottom, 32)
+            .frame(maxWidth: 960)
             .frame(maxWidth: .infinity)
         }
         .screenBackground()
@@ -86,6 +96,11 @@ struct DashboardView: View {
         }
         .onChange(of: selected) {
             if let selected { selectedRaw = selected.rawValue }
+        }
+        .onChange(of: visibleSections, initial: true) {
+            if selected == nil || !visibleSections.contains(where: { $0 == selected }) {
+                selected = visibleSections.first
+            }
         }
         // Suma los depósitos recurrentes y aplica los pagos automáticos que ya tocan al abrir la app,
         // al volver a ella y cuando cambian los movimientos (por ejemplo, al llegar cambios de otro dispositivo).
@@ -112,17 +127,26 @@ struct DashboardView: View {
     /// Cambia entre carrusel y cuadrícula; dice a cuál se va a cambiar.
     private var layoutButton: some View {
         Button {
-            withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+            withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) {
                 layout = layout == .carousel ? .grid : .carousel
             }
         } label: {
-            Label(
-                layout == .carousel ? t.showAsGrid : t.showAsCarousel,
-                systemImage: layout == .carousel ? "square.grid.2x2" : "rectangle.stack"
-            )
-            .appFont(.subheadline, weight: .semibold)
+            Image(systemName: layout == .carousel ? "square.grid.2x2" : "rectangle.stack")
+                .font(.system(size: 18 * scale, weight: .semibold))
+                .foregroundStyle(ThemeTint.mint.solid(scheme))
+                .frame(width: 44 * scale, height: 44 * scale)
+                .background {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(scheme == .dark ? Color.white.opacity(0.08) : .white)
+                }
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.07), lineWidth: 1)
+                }
         }
-        .glassButton()
+        .buttonStyle(PressableStyle())
+        .accessibilityLabel(layout == .carousel ? t.showAsGrid : t.showAsCarousel)
+        .help(layout == .carousel ? t.showAsGrid : t.showAsCarousel)
     }
 
     /// Todas las tarjetas a la vista, dos por fila y más chicas, para no tener que bajar.
@@ -130,55 +154,135 @@ struct DashboardView: View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
             ForEach(visibleSections, id: \.self) { section in
                 card(for: section, compact: true)
-                    .frame(height: 170 * scale)
+                    .frame(height: 196 * scale)
             }
         }
     }
 
-    /// Tarjetas que se deslizan de lado; la siguiente se asoma para que se note que hay más. Abajo,
-    /// todas las secciones disponibles: al elegir una, su tarjeta queda al inicio.
+    /// Las pestañas quedan siempre a la vista. La siguiente tarjeta se asoma y los controles
+    /// permiten recorrer el carrusel también con ratón y teclado.
     private var carousel: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            ScrollView(.horizontal) {
-                LazyHStack(spacing: 16) {
-                    ForEach(visibleSections, id: \.self) { section in
-                        card(for: section, compact: false)
-                            .frame(height: 250 * scale)
-                            .containerRelativeFrame(.horizontal) { length, _ in
-                                // En iPhone una tarjeta y la orilla de la siguiente; en Mac, casi dos.
-                                length > 600 ? (length - 16) * 0.48 : length * 0.86
-                            }
-                            .id(section)
-                    }
-                }
-                .scrollTargetLayout()
-            }
-            .scrollTargetBehavior(.viewAligned)
-            .scrollPosition(id: $selected)
-            .scrollIndicators(.hidden)
-            .scrollClipDisabled()
-
+        VStack(alignment: .leading, spacing: 20) {
             if visibleSections.count > 1 {
+                sectionTabs
+            }
+
+            GeometryReader { geometry in
+                let width = geometry.size.width
+                let cardWidth = visibleSections.count == 1 ? width : width * (width > 600 ? 0.78 : 0.91)
+
                 ScrollView(.horizontal) {
-                    HStack(spacing: 8) {
+                    LazyHStack(spacing: 16) {
                         ForEach(visibleSections, id: \.self) { section in
-                            SectionChip(
-                                title: t.homeSectionName(section),
-                                systemImage: section.systemImage,
-                                tint: section.tint,
-                                isSelected: section == currentSection
-                            ) {
-                                withAnimation(.spring(response: 0.45, dampingFraction: 0.8)) {
-                                    selected = section
-                                }
-                            }
+                            card(for: section, compact: false)
+                                .frame(width: cardWidth, height: 248 * scale)
+                                .id(section)
                         }
                     }
+                    .scrollTargetLayout()
+                    .padding(.vertical, 8)
                 }
+                .contentMargins(.trailing, width - cardWidth, for: .scrollContent)
+                .scrollTargetBehavior(.viewAligned)
+                .scrollPosition(id: $selected, anchor: .leading)
                 .scrollIndicators(.hidden)
-                .scrollClipDisabled()
+            }
+            .frame(height: 248 * scale + 16)
+
+            if visibleSections.count > 1 {
+                carouselControls
             }
         }
+    }
+
+    private var sectionTabs: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 6) {
+                ForEach(visibleSections, id: \.self) { section in
+                    sectionTab(section)
+                        .frame(minWidth: 62 * scale)
+                }
+            }
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 6) {
+                ForEach(visibleSections, id: \.self) { section in
+                    sectionTab(section)
+                }
+            }
+        }
+        .padding(6)
+        .background {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(scheme == .dark ? Color(hex: 0x17251F) : .white.opacity(0.9))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.07), lineWidth: 1)
+        }
+        .shadow(color: .black.opacity(scheme == .dark ? 0.12 : 0.035), radius: 16, y: 6)
+    }
+
+    private func sectionTab(_ section: HomeSection) -> some View {
+        SectionChip(
+            title: t.homeSectionTabName(section),
+            systemImage: section.systemImage,
+            tint: section.tint,
+            isSelected: section == currentSection
+        ) {
+            select(section)
+        }
+    }
+
+    private var carouselControls: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 6) {
+                ForEach(visibleSections, id: \.self) { section in
+                    Capsule()
+                        .fill(section == currentSection ? section.tint.solid(scheme) : Color.primary.opacity(0.15))
+                        .frame(width: section == currentSection ? 24 : 6, height: 6)
+                }
+            }
+            .accessibilityHidden(true)
+            Text("\(currentIndex + 1) / \(visibleSections.count)")
+                .appFont(.subheadline, weight: .medium)
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+                .accessibilityLabel(t.carouselPosition(currentIndex + 1, total: visibleSections.count))
+            Spacer()
+            carouselArrow("chevron.left", label: t.previousSection, disabled: currentIndex == 0) {
+                select(visibleSections[currentIndex - 1])
+            }
+            carouselArrow("chevron.right", label: t.nextSection, disabled: currentIndex == visibleSections.count - 1) {
+                select(visibleSections[currentIndex + 1])
+            }
+        }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: currentSection)
+    }
+
+    private var currentIndex: Int {
+        currentSection.flatMap { visibleSections.firstIndex(of: $0) } ?? 0
+    }
+
+    private func select(_ section: HomeSection) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) {
+            selected = section
+        }
+    }
+
+    private func carouselArrow(_ symbol: String, label: String, disabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 13 * scale, weight: .bold))
+                .foregroundStyle(disabled ? Color.secondary.opacity(0.4) : Color.primary)
+                .frame(width: 44, height: 44)
+                .background {
+                    Circle()
+                        .fill(scheme == .dark ? Color.white.opacity(0.07) : .white)
+                    }
+            }
+        .buttonStyle(PressableStyle())
+        .disabled(disabled)
+        .accessibilityLabel(label)
+        .help(label)
     }
 
     private func isShown(_ section: HomeSection) -> Bool {
@@ -194,17 +298,18 @@ struct DashboardView: View {
         NavigationLink {
             AccountsView()
         } label: {
-            HeroCard(
+            DashboardCard(
                 title: t.accounts,
                 systemImage: HomeSection.accounts.systemImage,
                 amount: accounts.totalBalance,
+                caption: t.totalBalance,
                 subtitle: accountsSubtitle,
+                tint: HomeSection.accounts.tint,
+                compact: compact,
                 history: BalanceHistory.points(
                     current: accounts.totalBalance,
                     changes: BalanceHistory.checkingChanges(movements)
-                ),
-                tint: HomeSection.accounts.tint,
-                compact: compact
+                )
             )
         }
         .buttonStyle(PressableStyle())
@@ -219,13 +324,13 @@ struct DashboardView: View {
             NavigationLink {
                 InvestmentsView()
             } label: {
-                CategoryCard(
+                DashboardCard(
                     title: t.investments,
                     systemImage: section.systemImage,
                     amount: investments.totalBalance,
+                    caption: t.totalValue,
                     subtitle: investmentsSubtitle,
                     tint: section.tint,
-                    seed: 0,
                     compact: compact
                 )
             }
@@ -234,13 +339,13 @@ struct DashboardView: View {
             NavigationLink {
                 DebtsListView()
             } label: {
-                CategoryCard(
+                DashboardCard(
                     title: t.debts,
                     systemImage: section.systemImage,
                     amount: totalDebt,
+                    caption: t.totalDebt,
                     subtitle: debtsSubtitle,
                     tint: section.tint,
-                    seed: 1,
                     compact: compact
                 )
             }
@@ -249,13 +354,13 @@ struct DashboardView: View {
             NavigationLink {
                 AssetsView()
             } label: {
-                CategoryCard(
+                DashboardCard(
                     title: t.assets,
                     systemImage: section.systemImage,
                     amount: assets.reduce(0) { $0 + $1.value },
+                    caption: t.totalValue,
                     subtitle: assetsSubtitle,
                     tint: section.tint,
-                    seed: 2,
                     compact: compact
                 )
             }
@@ -295,139 +400,113 @@ struct DashboardView: View {
     }
 }
 
-/// Tarjeta grande de color, como una tarjeta de banco, para el saldo de las cuentas. Al pie va la
-/// línea de cómo ha subido y bajado el saldo. `compact` es la versión chica de la cuadrícula.
-private struct HeroCard: View {
+/// Una misma jerarquía visual para todas las categorías. Solo las cuentas muestran una gráfica,
+/// construida con su historial real; las otras categorías llevan un símbolo decorativo.
+private struct DashboardCard: View {
     @Environment(\.l10n) private var t
     @Environment(\.textScale) private var scale
     @Environment(\.colorScheme) private var scheme
     let title: String
     let systemImage: String
     let amount: Double
+    let caption: String
     let subtitle: String
-    let history: [Double]
     let tint: ThemeTint
     let compact: Bool
+    var history: [Double]? = nil
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: compact ? 22 : 28, style: .continuous)
-        let icon: CGFloat = compact ? 28 : 34
+        let icon: CGFloat = compact ? 28 : 38
 
-        VStack(alignment: .leading, spacing: (compact ? 8 : 14) * scale) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: compact ? 8 : 10) {
                 Image(systemName: systemImage)
                     .font(.system(size: icon * 0.47 * scale, weight: .semibold, design: .rounded))
                     .frame(width: icon * scale, height: icon * scale)
-                    .background(.white.opacity(0.22), in: RoundedRectangle(cornerRadius: icon * 0.32 * scale, style: .continuous))
+                    .background(.white.opacity(0.13), in: RoundedRectangle(cornerRadius: icon * 0.32 * scale, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: icon * 0.32 * scale, style: .continuous)
+                            .strokeBorder(.white.opacity(0.16), lineWidth: 1)
+                    }
                 Text(title)
-                    .appFont(.subheadline, weight: .bold)
-                    .textCase(.uppercase)
-                    .tracking(compact ? 1 : 1.4)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                    .appFont(compact ? .subheadline : .body, weight: .semibold)
+                    .lineLimit(compact ? 2 : 1)
+                    .minimumScaleFactor(0.85)
                 Spacer(minLength: 0)
                 if !compact {
-                    Image(systemName: "chevron.right")
-                        .appFont(.headline)
-                        .opacity(0.7)
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 13 * scale, weight: .semibold))
+                        .frame(width: 30 * scale, height: 30 * scale)
+                        .background(.white.opacity(0.12), in: Circle())
                 }
             }
-            Text(t.money(amount))
-                .font(.system(size: (compact ? 26 : 44) * scale, weight: .heavy, design: .rounded))
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
+            Spacer(minLength: 12 * scale)
+            VStack(alignment: .leading, spacing: 4 * scale) {
+                Text(caption)
+                    .appFont(.subheadline, weight: .medium)
+                    .foregroundStyle(.white.opacity(0.8))
+                Text(t.money(amount))
+                    .font(.system(size: (compact ? 28 : 42) * scale, weight: .bold, design: .rounded))
+                    .tracking(-1)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+            }
             Text(subtitle)
-                .appFont(compact ? .subheadline : .body, weight: .medium)
-                .opacity(0.85)
+                .appFont(.subheadline, weight: .medium)
+                .foregroundStyle(.white.opacity(0.85))
                 .lineLimit(compact ? 1 : 2)
+                .padding(.top, 7 * scale)
+            Spacer(minLength: compact ? 14 * scale : 18 * scale)
+            if let history {
+                Sparkline(values: history, color: .white.opacity(0.65))
+                    .frame(height: (compact ? 20 : 30) * scale)
+                    .accessibilityHidden(true)
+            } else {
+                Capsule()
+                    .fill(.white.opacity(0.3))
+                    .frame(width: 32 * scale, height: 3)
+                    .frame(height: (compact ? 20 : 30) * scale, alignment: .bottomLeading)
+                    .accessibilityHidden(true)
+            }
         }
         .foregroundStyle(.white)
-        .padding((compact ? 14 : 22) * scale)
-        .padding(.bottom, (compact ? 36 : 58) * scale)
+        .padding((compact ? 16 : 24) * scale)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background {
-            ZStack(alignment: .bottom) {
+            ZStack(alignment: .bottomTrailing) {
                 LinearGradient(colors: tint.gradient(scheme), startPoint: .topLeading, endPoint: .bottomTrailing)
-                Bubbles()
-                Sparkline(values: history)
-                    .frame(height: (compact ? 32 : 56) * scale)
-                    .padding(.bottom, (compact ? 10 : 14) * scale)
+                Circle()
+                    .stroke(.white.opacity(0.06), lineWidth: compact ? 28 : 48)
+                    .frame(width: compact ? 150 : 260, height: compact ? 150 : 260)
+                    .offset(x: compact ? 65 : 90, y: compact ? 70 : 130)
+                if history == nil {
+                    Image(systemName: systemImage)
+                        .font(.system(size: (compact ? 72 : 128) * scale, weight: .ultraLight))
+                        .foregroundStyle(.white.opacity(0.06))
+                        .rotationEffect(.degrees(-15))
+                        .offset(x: 12, y: 14)
+                        .accessibilityHidden(true)
+                }
             }
         }
         .clipShape(shape)
         .overlay(
             shape.strokeBorder(
-                LinearGradient(colors: [.white.opacity(0.5), .white.opacity(0.05)], startPoint: .top, endPoint: .bottom),
+                LinearGradient(colors: [.white.opacity(0.28), .white.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing),
                 lineWidth: 1
             )
         )
-        .shadow(color: tint.solid(scheme).opacity(scheme == .dark ? 0.3 : 0.35), radius: compact ? 14 : 24, y: compact ? 6 : 12)
         .contentShape(shape)
     }
 }
 
-/// Tarjeta de vidrio con el monto en el color de la categoría y una ola de adorno abajo. `compact`
-/// es la versión chica de la cuadrícula.
-private struct CategoryCard: View {
-    @Environment(\.l10n) private var t
-    @Environment(\.textScale) private var scale
-    @Environment(\.colorScheme) private var scheme
-    let title: String
-    let systemImage: String
-    let amount: Double
-    let subtitle: String
-    let tint: ThemeTint
-    let seed: Int
-    let compact: Bool
-
-    var body: some View {
-        let radius: CGFloat = compact ? 22 : 24
-        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-
-        VStack(alignment: .leading, spacing: (compact ? 8 : 10) * scale) {
-            HStack(spacing: compact ? 8 : 10) {
-                IconTile(systemImage: systemImage, tint: tint, size: compact ? 28 : 34)
-                Text(title)
-                    .appFont(.subheadline, weight: .bold)
-                    .textCase(.uppercase)
-                    .tracking(compact ? 0.8 : 1.1)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                Spacer(minLength: 0)
-                if !compact {
-                    Image(systemName: "chevron.right")
-                        .appFont(.headline)
-                        .foregroundStyle(.tertiary)
-                }
-            }
-            Text(t.money(amount))
-                .font(.system(size: (compact ? 24 : 30) * scale, weight: .heavy, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(tint.solid(scheme))
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
-            Text(subtitle)
-                .appFont(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(compact ? 1 : 2)
-        }
-        .padding((compact ? 14 : 18) * scale)
-        .padding(.bottom, (compact ? 18 : 26) * scale)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(alignment: .bottom) {
-            WaveDecoration(tint: tint, seed: seed)
-                .frame(height: (compact ? 30 : 46) * scale)
-        }
-        .clipShape(shape)
-        .glassCard(cornerRadius: radius, tint: tint.solid(scheme).opacity(0.08))
-        .contentShape(shape)
-    }
-}
-
-/// Píldora de una sección del carrusel; la elegida va rellena con su color.
+/// Pestaña con superficie propia, icono y nombre; la elegida tiene un relleno de alto contraste.
 private struct SectionChip: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.textScale) private var scale
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let title: String
     let systemImage: String
     let tint: ThemeTint
@@ -435,20 +514,36 @@ private struct SectionChip: View {
     let action: () -> Void
 
     var body: some View {
-        let color = tint.solid(scheme)
+        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
 
         Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .appFont(.subheadline, weight: .semibold)
-                .lineLimit(1)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 7)
-                .foregroundStyle(isSelected ? Color.white : color)
-                .background(isSelected ? color : color.opacity(0.14), in: Capsule())
-                .contentShape(Capsule())
+            VStack(spacing: 7 * scale) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 19 * scale, weight: .semibold))
+                    .foregroundStyle(isSelected ? Color.white : tint.solid(scheme))
+                    .frame(height: 23 * scale)
+                Text(title)
+                    .appFont(.subheadline, weight: .semibold)
+                    .foregroundStyle(isSelected ? Color.white : Color.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 12 * scale)
+            .background {
+                if isSelected {
+                    shape.fill(LinearGradient(colors: tint.gradient(scheme), startPoint: .topLeading, endPoint: .bottomTrailing))
+                } else {
+                    shape.fill(Color.primary.opacity(scheme == .dark ? 0.04 : 0.025))
+                }
+            }
+            .overlay(shape.strokeBorder(isSelected ? .white.opacity(0.15) : Color.primary.opacity(0.05), lineWidth: 1))
+            .contentShape(shape)
         }
         .buttonStyle(PressableStyle())
-        .animation(.easeInOut(duration: 0.2), value: isSelected)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isSelected)
     }
 }
 
