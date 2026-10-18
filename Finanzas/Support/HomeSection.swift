@@ -8,6 +8,8 @@ enum HomeSection: String, CaseIterable {
     case assets
 
     static let orderKey = "homeOrder"
+    /// Última tarjeta elegida en el carrusel de inicio.
+    static let selectedKey = "homeSelected"
 
     var storageKey: String { "showOnHome." + rawValue }
 
@@ -32,4 +34,12 @@ enum HomeSection: String, CaseIterable {
     static func raw(_ sections: [HomeSection]) -> String {
         sections.map(\.rawValue).joined(separator: ",")
     }
+}
+
+/// Cómo se ven las tarjetas de inicio: carrusel que se desliza de lado o cuadrícula con todas a la vista.
+enum HomeLayout: String {
+    case carousel
+    case grid
+
+    static let storageKey = "homeLayout"
 }

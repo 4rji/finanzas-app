@@ -11,6 +11,8 @@ struct DashboardView: View {
     @AppStorage(HomeSection.debts.storageKey) private var showDebts = true
     @AppStorage(HomeSection.assets.storageKey) private var showAssets = true
     @AppStorage(HomeSection.orderKey) private var orderRaw = ""
+    @AppStorage(HomeSection.selectedKey) private var selectedRaw = ""
+    @AppStorage(HomeLayout.storageKey) private var layout: HomeLayout = .carousel
     @Query private var debts: [Debt]
     @Query(sort: \Account.createdAt) private var allAccounts: [Account]
     @Query private var incomes: [RecurringIncome]
@@ -18,6 +20,10 @@ struct DashboardView: View {
     @Query(sort: \Asset.createdAt) private var assets: [Asset]
 
     @State private var showingSettings = false
+    /// Tarjeta del carrusel que está al inicio. Arranca en la última que se eligió.
+    @State private var selected: HomeSection? = HomeSection(
+        rawValue: UserDefaults.standard.string(forKey: HomeSection.selectedKey) ?? ""
+    )
 
     private var accounts: [Account] { allAccounts.checking }
     private var investments: [Account] { allAccounts.investments }
@@ -29,37 +35,34 @@ struct DashboardView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                Text(t.weekdayDate(Date()))
-                    .sectionTitle()
-
-                ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
-                    if block == [.accounts] {
-                        accountsCard
-                    } else {
-                        // En Mac caben dos tarjetas por fila; en iPhone, una.
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 280 * scale), spacing: 16)], spacing: 16) {
-                            ForEach(block, id: \.self) { section in
-                                card(for: section)
-                            }
-                        }
-                    }
-
-                    if block.contains(.debts) && !debts.isEmpty {
-                        NavigationLink {
-                            PayoffView()
-                        } label: {
-                            LinkCard(title: t.payoffQuestion, subtitle: t.payoffHint, systemImage: "calendar.badge.clock")
-                        }
-                        .buttonStyle(PressableStyle())
+                HStack {
+                    Text(t.weekdayDate(Date()))
+                        .sectionTitle()
+                    Spacer()
+                    if visibleSections.count > 1 {
+                        layoutButton
                     }
                 }
 
-                if blocks.isEmpty {
+                if visibleSections.isEmpty {
                     ContentUnavailableView(
                         t.everythingHidden,
                         systemImage: "eye.slash",
                         description: Text(t.everythingHiddenMessage)
                     )
+                } else if layout == .grid {
+                    grid
+                } else {
+                    carousel
+                }
+
+                if showDebts && !debts.isEmpty {
+                    NavigationLink {
+                        PayoffView()
+                    } label: {
+                        LinkCard(title: t.payoffQuestion, subtitle: t.payoffHint, systemImage: "calendar.badge.clock")
+                    }
+                    .buttonStyle(PressableStyle())
                 }
             }
             .padding(24)
@@ -81,6 +84,9 @@ struct DashboardView: View {
         .sheet(isPresented: $showingSettings) {
             SettingsView()
         }
+        .onChange(of: selected) {
+            if let selected { selectedRaw = selected.rawValue }
+        }
         // Suma los depósitos recurrentes y aplica los pagos automáticos que ya tocan al abrir la app,
         // al volver a ella y cuando cambian los movimientos (por ejemplo, al llegar cambios de otro dispositivo).
         .task { RecurringDeposits.update(in: context) }
@@ -92,18 +98,87 @@ struct DashboardView: View {
         }
     }
 
-    /// Secciones visibles en el orden de Configuración. Cuentas va sola (tarjeta grande) y las
-    /// demás seguidas se juntan en una cuadrícula.
-    private var blocks: [[HomeSection]] {
-        var result: [[HomeSection]] = []
-        for section in HomeSection.ordered(orderRaw) where isShown(section) {
-            if section == .accounts || result.last == [.accounts] || result.isEmpty {
-                result.append([section])
-            } else {
-                result[result.count - 1].append(section)
+    /// Secciones visibles en el orden de Configuración.
+    private var visibleSections: [HomeSection] {
+        HomeSection.ordered(orderRaw).filter(isShown)
+    }
+
+    /// La sección elegida, o la primera si la elegida está oculta.
+    private var currentSection: HomeSection? {
+        if let selected, visibleSections.contains(selected) { return selected }
+        return visibleSections.first
+    }
+
+    /// Cambia entre carrusel y cuadrícula; dice a cuál se va a cambiar.
+    private var layoutButton: some View {
+        Button {
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                layout = layout == .carousel ? .grid : .carousel
+            }
+        } label: {
+            Label(
+                layout == .carousel ? t.showAsGrid : t.showAsCarousel,
+                systemImage: layout == .carousel ? "square.grid.2x2" : "rectangle.stack"
+            )
+            .appFont(.subheadline, weight: .semibold)
+        }
+        .glassButton()
+    }
+
+    /// Todas las tarjetas a la vista, dos por fila y más chicas, para no tener que bajar.
+    private var grid: some View {
+        LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+            ForEach(visibleSections, id: \.self) { section in
+                card(for: section, compact: true)
+                    .frame(height: 170 * scale)
             }
         }
-        return result
+    }
+
+    /// Tarjetas que se deslizan de lado; la siguiente se asoma para que se note que hay más. Abajo,
+    /// todas las secciones disponibles: al elegir una, su tarjeta queda al inicio.
+    private var carousel: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: 16) {
+                    ForEach(visibleSections, id: \.self) { section in
+                        card(for: section, compact: false)
+                            .frame(height: 250 * scale)
+                            .containerRelativeFrame(.horizontal) { length, _ in
+                                // En iPhone una tarjeta y la orilla de la siguiente; en Mac, casi dos.
+                                length > 600 ? (length - 16) * 0.48 : length * 0.86
+                            }
+                            .id(section)
+                    }
+                }
+                .scrollTargetLayout()
+            }
+            .scrollTargetBehavior(.viewAligned)
+            .scrollPosition(id: $selected)
+            .scrollIndicators(.hidden)
+            .scrollClipDisabled()
+
+            if visibleSections.count > 1 {
+                ScrollView(.horizontal) {
+                    HStack(spacing: 8) {
+                        ForEach(visibleSections, id: \.self) { section in
+                            SectionChip(
+                                title: t.homeSectionName(section),
+                                systemImage: section.systemImage,
+                                tint: section.tint,
+                                isSelected: section == currentSection
+                            ) {
+                                withAnimation(.spring(response: 0.45, dampingFraction: 0.8)) {
+                                    selected = section
+                                }
+                            }
+                        }
+                    }
+                }
+                .scrollIndicators(.hidden)
+                .scrollClipDisabled()
+            }
+        }
     }
 
     private func isShown(_ section: HomeSection) -> Bool {
@@ -115,7 +190,7 @@ struct DashboardView: View {
         }
     }
 
-    private var accountsCard: some View {
+    private func accountsCard(compact: Bool) -> some View {
         NavigationLink {
             AccountsView()
         } label: {
@@ -128,17 +203,18 @@ struct DashboardView: View {
                     current: accounts.totalBalance,
                     changes: BalanceHistory.checkingChanges(movements)
                 ),
-                tint: HomeSection.accounts.tint
+                tint: HomeSection.accounts.tint,
+                compact: compact
             )
         }
         .buttonStyle(PressableStyle())
     }
 
     @ViewBuilder
-    private func card(for section: HomeSection) -> some View {
+    private func card(for section: HomeSection, compact: Bool) -> some View {
         switch section {
         case .accounts:
-            accountsCard
+            accountsCard(compact: compact)
         case .investments:
             NavigationLink {
                 InvestmentsView()
@@ -149,7 +225,8 @@ struct DashboardView: View {
                     amount: investments.totalBalance,
                     subtitle: investmentsSubtitle,
                     tint: section.tint,
-                    seed: 0
+                    seed: 0,
+                    compact: compact
                 )
             }
             .buttonStyle(PressableStyle())
@@ -163,7 +240,8 @@ struct DashboardView: View {
                     amount: totalDebt,
                     subtitle: debtsSubtitle,
                     tint: section.tint,
-                    seed: 1
+                    seed: 1,
+                    compact: compact
                 )
             }
             .buttonStyle(PressableStyle())
@@ -177,7 +255,8 @@ struct DashboardView: View {
                     amount: assets.reduce(0) { $0 + $1.value },
                     subtitle: assetsSubtitle,
                     tint: section.tint,
-                    seed: 2
+                    seed: 2,
+                    compact: compact
                 )
             }
             .buttonStyle(PressableStyle())
@@ -217,7 +296,7 @@ struct DashboardView: View {
 }
 
 /// Tarjeta grande de color, como una tarjeta de banco, para el saldo de las cuentas. Al pie va la
-/// línea de cómo ha subido y bajado el saldo.
+/// línea de cómo ha subido y bajado el saldo. `compact` es la versión chica de la cuadrícula.
 private struct HeroCard: View {
     @Environment(\.l10n) private var t
     @Environment(\.textScale) private var scale
@@ -228,46 +307,52 @@ private struct HeroCard: View {
     let subtitle: String
     let history: [Double]
     let tint: ThemeTint
+    let compact: Bool
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 28, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: compact ? 22 : 28, style: .continuous)
+        let icon: CGFloat = compact ? 28 : 34
 
-        VStack(alignment: .leading, spacing: 14 * scale) {
-            HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: (compact ? 8 : 14) * scale) {
+            HStack(spacing: compact ? 8 : 10) {
                 Image(systemName: systemImage)
-                    .font(.system(size: 16 * scale, weight: .semibold, design: .rounded))
-                    .frame(width: 34 * scale, height: 34 * scale)
-                    .background(.white.opacity(0.22), in: RoundedRectangle(cornerRadius: 11 * scale, style: .continuous))
+                    .font(.system(size: icon * 0.47 * scale, weight: .semibold, design: .rounded))
+                    .frame(width: icon * scale, height: icon * scale)
+                    .background(.white.opacity(0.22), in: RoundedRectangle(cornerRadius: icon * 0.32 * scale, style: .continuous))
                 Text(title)
                     .appFont(.subheadline, weight: .bold)
                     .textCase(.uppercase)
-                    .tracking(1.4)
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .appFont(.headline)
-                    .opacity(0.7)
+                    .tracking(compact ? 1 : 1.4)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Spacer(minLength: 0)
+                if !compact {
+                    Image(systemName: "chevron.right")
+                        .appFont(.headline)
+                        .opacity(0.7)
+                }
             }
             Text(t.money(amount))
-                .font(.system(size: 44 * scale, weight: .heavy, design: .rounded))
+                .font(.system(size: (compact ? 26 : 44) * scale, weight: .heavy, design: .rounded))
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
             Text(subtitle)
-                .appFont(.body, weight: .medium)
+                .appFont(compact ? .subheadline : .body, weight: .medium)
                 .opacity(0.85)
-                .lineLimit(2)
+                .lineLimit(compact ? 1 : 2)
         }
         .foregroundStyle(.white)
-        .padding(22 * scale)
-        .padding(.bottom, 58 * scale)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding((compact ? 14 : 22) * scale)
+        .padding(.bottom, (compact ? 36 : 58) * scale)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background {
             ZStack(alignment: .bottom) {
                 LinearGradient(colors: tint.gradient(scheme), startPoint: .topLeading, endPoint: .bottomTrailing)
                 Bubbles()
                 Sparkline(values: history)
-                    .frame(height: 56 * scale)
-                    .padding(.bottom, 14 * scale)
+                    .frame(height: (compact ? 32 : 56) * scale)
+                    .padding(.bottom, (compact ? 10 : 14) * scale)
             }
         }
         .clipShape(shape)
@@ -277,12 +362,13 @@ private struct HeroCard: View {
                 lineWidth: 1
             )
         )
-        .shadow(color: tint.solid(scheme).opacity(scheme == .dark ? 0.3 : 0.35), radius: 24, y: 12)
+        .shadow(color: tint.solid(scheme).opacity(scheme == .dark ? 0.3 : 0.35), radius: compact ? 14 : 24, y: compact ? 6 : 12)
         .contentShape(shape)
     }
 }
 
-/// Tarjeta de vidrio con el monto en el color de la categoría y una ola de adorno abajo.
+/// Tarjeta de vidrio con el monto en el color de la categoría y una ola de adorno abajo. `compact`
+/// es la versión chica de la cuadrícula.
 private struct CategoryCard: View {
     @Environment(\.l10n) private var t
     @Environment(\.textScale) private var scale
@@ -293,25 +379,30 @@ private struct CategoryCard: View {
     let subtitle: String
     let tint: ThemeTint
     let seed: Int
+    let compact: Bool
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 24, style: .continuous)
+        let radius: CGFloat = compact ? 22 : 24
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
 
-        VStack(alignment: .leading, spacing: 10 * scale) {
-            HStack(spacing: 10) {
-                IconTile(systemImage: systemImage, tint: tint)
+        VStack(alignment: .leading, spacing: (compact ? 8 : 10) * scale) {
+            HStack(spacing: compact ? 8 : 10) {
+                IconTile(systemImage: systemImage, tint: tint, size: compact ? 28 : 34)
                 Text(title)
                     .appFont(.subheadline, weight: .bold)
                     .textCase(.uppercase)
-                    .tracking(1.1)
+                    .tracking(compact ? 0.8 : 1.1)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                 Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .appFont(.headline)
-                    .foregroundStyle(.tertiary)
+                if !compact {
+                    Image(systemName: "chevron.right")
+                        .appFont(.headline)
+                        .foregroundStyle(.tertiary)
+                }
             }
             Text(t.money(amount))
-                .font(.system(size: 30 * scale, weight: .heavy, design: .rounded))
+                .font(.system(size: (compact ? 24 : 30) * scale, weight: .heavy, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(tint.solid(scheme))
                 .lineLimit(1)
@@ -319,18 +410,45 @@ private struct CategoryCard: View {
             Text(subtitle)
                 .appFont(.subheadline)
                 .foregroundStyle(.secondary)
-                .lineLimit(2)
+                .lineLimit(compact ? 1 : 2)
         }
-        .padding(18 * scale)
-        .padding(.bottom, 26 * scale)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .padding((compact ? 14 : 18) * scale)
+        .padding(.bottom, (compact ? 18 : 26) * scale)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(alignment: .bottom) {
             WaveDecoration(tint: tint, seed: seed)
-                .frame(height: 46 * scale)
+                .frame(height: (compact ? 30 : 46) * scale)
         }
         .clipShape(shape)
-        .glassCard(cornerRadius: 24, tint: tint.solid(scheme).opacity(0.08))
+        .glassCard(cornerRadius: radius, tint: tint.solid(scheme).opacity(0.08))
         .contentShape(shape)
+    }
+}
+
+/// Píldora de una sección del carrusel; la elegida va rellena con su color.
+private struct SectionChip: View {
+    @Environment(\.colorScheme) private var scheme
+    let title: String
+    let systemImage: String
+    let tint: ThemeTint
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        let color = tint.solid(scheme)
+
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .appFont(.subheadline, weight: .semibold)
+                .lineLimit(1)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .foregroundStyle(isSelected ? Color.white : color)
+                .background(isSelected ? color : color.opacity(0.14), in: Capsule())
+                .contentShape(Capsule())
+        }
+        .buttonStyle(PressableStyle())
+        .animation(.easeInOut(duration: 0.2), value: isSelected)
     }
 }
 

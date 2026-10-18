@@ -72,6 +72,15 @@ struct L10n {
              "Arrastra para cambiar el orden. Activa o desactiva cada sección para mostrarla u ocultarla en inicio.")
     }
     var generalTitle: String { pick("General", "General") }
+    var languageHint: String { pick("App text", "Textos de la app") }
+    var textSizeHint: String { pick("Throughout the app", "En toda la app") }
+    var appearanceHint: String { pick("Light, dark or like the system", "Claro, oscuro o como el sistema") }
+    var hideAmountsHint: String { pick("Shows ***** instead of amounts", "Muestra ***** en lugar de los montos") }
+    var shownOnHome: String { pick("Shown on home", "Se muestra en inicio") }
+    var hiddenFromHome: String { pick("Hidden", "Oculta") }
+    var close: String { pick("Close", "Cerrar") }
+    var showAsGrid: String { pick("Grid", "Cuadrícula") }
+    var showAsCarousel: String { pick("Carousel", "Carrusel") }
 
     func homeSectionName(_ section: HomeSection) -> String {
         switch section {

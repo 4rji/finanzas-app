@@ -291,25 +291,32 @@ struct PressableStyle: ButtonStyle {
 
 // MARK: - Adornos
 
-/// Ícono dentro de un cuadrito redondeado con el color de su categoría.
+/// Ícono dentro de un cuadrito redondeado con el color de su categoría. `filled` lo pone blanco
+/// sobre el degradado, como en los menús.
 struct IconTile: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.textScale) private var scale
     let systemImage: String
     let tint: ThemeTint
     var size: CGFloat = 34
+    var filled = false
 
     var body: some View {
         let side = size * scale
+        let shape = RoundedRectangle(cornerRadius: side * 0.3, style: .continuous)
 
         Image(systemName: systemImage)
             .font(.system(size: side * 0.46, weight: .semibold, design: .rounded))
-            .foregroundStyle(tint.solid(scheme))
+            .foregroundStyle(filled ? Color.white : tint.solid(scheme))
             .frame(width: side, height: side)
-            .background(
-                tint.solid(scheme).opacity(scheme == .dark ? 0.18 : 0.14),
-                in: RoundedRectangle(cornerRadius: side * 0.32, style: .continuous)
-            )
+            .background {
+                if filled {
+                    shape.fill(LinearGradient(colors: tint.gradient(scheme), startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .shadow(color: tint.solid(scheme).opacity(0.35), radius: 6, y: 3)
+                } else {
+                    shape.fill(tint.solid(scheme).opacity(scheme == .dark ? 0.18 : 0.14))
+                }
+            }
     }
 }
 
