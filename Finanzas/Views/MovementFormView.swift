@@ -5,7 +5,7 @@ import SwiftData
 struct MovementFormView: View {
     @Environment(\.l10n) private var t
     @Environment(\.modelContext) private var context
-    @Query(sort: \Account.createdAt) private var accounts: [Account]
+    @Query(sort: \Account.createdAt) private var allAccounts: [Account]
 
     let kind: MovementKind
     let movement: Movement?
@@ -22,6 +22,11 @@ struct MovementFormView: View {
         _amountText = State(initialValue: editText(movement?.amount ?? 0))
         _date = State(initialValue: movement?.date ?? Date())
         _account = State(initialValue: movement?.account)
+    }
+
+    /// Cuentas de cheques, más la del movimiento si es una inversión (por ejemplo, un aporte de fuera).
+    private var accounts: [Account] {
+        allAccounts.filter { $0.kind == .checking || $0 == movement?.account }
     }
 
     private var amount: Double { parseDecimal(amountText) }

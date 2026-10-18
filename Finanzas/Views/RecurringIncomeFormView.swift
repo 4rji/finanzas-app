@@ -5,7 +5,7 @@ import SwiftData
 struct RecurringIncomeFormView: View {
     @Environment(\.l10n) private var t
     @Environment(\.modelContext) private var context
-    @Query(sort: \Account.createdAt) private var accounts: [Account]
+    @Query(sort: \Account.createdAt) private var allAccounts: [Account]
 
     let income: RecurringIncome?
 
@@ -27,6 +27,9 @@ struct RecurringIncomeFormView: View {
     private var trimmedName: String {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
+
+    /// Los aportes a inversiones se capturan en Mover dinero.
+    private var accounts: [Account] { allAccounts.checking }
 
     private var amount: Double { parseDecimal(amountText) }
     private var selectedAccount: Account? { account ?? accounts.first }

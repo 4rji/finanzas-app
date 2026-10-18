@@ -39,6 +39,11 @@ struct DebtsListView: View {
                                 }
                             }
                         }
+                        NavigationLink {
+                            PayoffView()
+                        } label: {
+                            Label(t.payoffQuestion, systemImage: "calendar.badge.clock")
+                        }
                     }
 
                     ForEach(DebtKind.allCases) { kind in
@@ -129,7 +134,7 @@ private struct DebtRow: View {
             let due = t.dueShort + " " + t.shortDate(debt.nextDueDate)
             guard let usage = debt.creditUsage else { return due }
             return due + " · " + t.usageUsed(usage)
-        case .mortgage, .studentLoan:
+        case .mortgage, .autoLoan, .studentLoan:
             return [
                 t.percent(debt.interestRate),
                 t.perMonth(debt.monthlyPayment),

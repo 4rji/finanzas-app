@@ -14,6 +14,7 @@ enum CardBalanceType: String, CaseIterable, Identifiable {
 struct DebtFormView: View {
     @Environment(\.l10n) private var t
     @Environment(\.modelContext) private var context
+    @Query(sort: \Account.createdAt) private var allAccounts: [Account]
 
     let kind: DebtKind
     let debt: Debt?
@@ -24,6 +25,11 @@ struct DebtFormView: View {
     @State private var paymentText: String
     @State private var limitText: String
     @State private var dueDay: Int
+    @State private var insuranceText: String
+
+    // Pago automático desde una cuenta de cheques.
+    @State private var autoPay: Bool
+    @State private var payAccount: Account?
 
     // Solo tarjeta nueva: saldo revolvente y/o meses sin intereses.
     @State private var balanceType: CardBalanceType = .revolving
@@ -38,6 +44,9 @@ struct DebtFormView: View {
         _paymentText = State(initialValue: editText(debt?.monthlyPayment ?? 0))
         _limitText = State(initialValue: editText(debt?.creditLimit ?? 0))
         _dueDay = State(initialValue: debt?.paymentDueDay ?? 1)
+        _insuranceText = State(initialValue: editText(debt?.insuranceAmount ?? 0))
+        _autoPay = State(initialValue: debt?.autoPayment != nil)
+        _payAccount = State(initialValue: debt?.autoPayment?.account)
     }
 
     private var trimmedName: String {
@@ -47,8 +56,31 @@ struct DebtFormView: View {
     private var isNewCard: Bool { debt == nil && kind == .creditCard }
     private var includesPlan: Bool { isNewCard && balanceType != .revolving }
 
+    private var accounts: [Account] { allAccounts.checking }
+    private var selectedPayAccount: Account? { payAccount ?? accounts.first }
+    private var monthly: Double { parseDecimal(paymentText) }
+
     private var canSave: Bool {
-        !trimmedName.isEmpty && (!includesPlan || planDraft.isValid)
+        !trimmedName.isEmpty
+            && (!includesPlan || planDraft.isValid)
+            && (!autoPay || (monthly > 0 && selectedPayAccount != nil))
+    }
+
+    /// El calendario del pago automático se reinicia si es nuevo o si cambió el día.
+    private var reschedulesAutoPay: Bool {
+        guard let debt, debt.autoPayment != nil else { return true }
+        return dueDay != debt.paymentDueDay
+    }
+
+    /// Primer día de pago después de hoy, para no cobrar dos veces si hoy ya se pagó a mano.
+    private var firstAutoPayDate: Date {
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+        return Debt.nextDate(onDay: dueDay, onOrAfter: tomorrow)
+    }
+
+    private var nextAutoPayDate: Date {
+        if !reschedulesAutoPay, let plan = debt?.autoPayment { return plan.nextPayDate }
+        return firstAutoPayDate
     }
 
     var body: some View {
@@ -56,9 +88,10 @@ struct DebtFormView: View {
             switch kind {
             case .creditCard:
                 cardSections
-            case .mortgage, .studentLoan:
-                loanSection
+            case .mortgage, .autoLoan, .studentLoan:
+                loanSections
             }
+            autoPaySection
         }
     }
 
@@ -81,14 +114,13 @@ struct DebtFormView: View {
                     Text(String(day)).tag(day)
                 }
             }
+            DecimalField(title: t.cardPlannedPayment, text: $paymentText, prefix: t.currencySymbol)
         } header: {
             header
         } footer: {
-            if !isNewCard {
-                Text(t.cardFormFooter)
-                    .appFont(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
+            Text(isNewCard ? t.cardPlannedPaymentFooter : t.cardFormFooter + " " + t.cardPlannedPaymentFooter)
+                .appFont(.subheadline)
+                .foregroundStyle(.secondary)
         }
 
         if isNewCard {
@@ -120,7 +152,8 @@ struct DebtFormView: View {
         }
     }
 
-    private var loanSection: some View {
+    @ViewBuilder
+    private var loanSections: some View {
         Section {
             TextRow(title: t.name, text: $name, prompt: t.namePlaceholder(kind))
             DecimalField(title: t.remainingBalance, text: $balanceText, prefix: t.currencySymbol)
@@ -133,9 +166,62 @@ struct DebtFormView: View {
                 .appFont(.subheadline)
                 .foregroundStyle(.secondary)
         }
+
+        // El seguro del auto es solo una nota: no entra en el pago ni en el total.
+        if kind == .autoLoan {
+            Section {
+                DecimalField(title: t.insuranceAmount, text: $insuranceText, prefix: t.currencySymbol)
+            } header: {
+                Label(t.insurance, systemImage: "shield")
+                    .appFont(.headline)
+            } footer: {
+                Text(t.insuranceFooter)
+                    .appFont(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    /// La casilla solo aparece si hay una cuenta de cheques de donde sacar el pago.
+    private var autoPaySection: some View {
+        Section {
+            if accounts.isEmpty {
+                Label(t.autoPayNeedsAccount, systemImage: "info.circle")
+                    .foregroundStyle(.secondary)
+            } else {
+                Toggle(t.autoPayToggle, isOn: $autoPay)
+                    .checkboxStyle()
+                if autoPay {
+                    AccountPicker(accounts: accounts, selection: $payAccount)
+                    if kind != .creditCard {
+                        Picker(t.paymentDay, selection: $dueDay) {
+                            ForEach(1...31, id: \.self) { day in
+                                Text(String(day)).tag(day)
+                            }
+                        }
+                    }
+                    if monthly > 0 {
+                        LabeledContent(t.nextAutoPayment, value: t.date(nextAutoPayDate))
+                    } else {
+                        Label(t.autoPayNeedsAmount, systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.orange)
+                    }
+                }
+            }
+        } header: {
+            Label(t.autoPay, systemImage: "arrow.triangle.2.circlepath")
+                .appFont(.headline)
+        } footer: {
+            if !accounts.isEmpty {
+                Text(t.autoPayFooter)
+                    .appFont(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 
     private func save() {
+        let rescheduleAutoPay = reschedulesAutoPay
         let target: Debt
         if let debt {
             target = debt
@@ -147,9 +233,11 @@ struct DebtFormView: View {
         target.name = trimmedName
         target.interestRate = parseDecimal(rateText)
 
+        target.paymentDueDay = dueDay
+        target.monthlyPayment = monthly
+
         switch kind {
         case .creditCard:
-            target.paymentDueDay = dueDay
             target.creditLimit = parseDecimal(limitText)
             target.balance = (isNewCard && balanceType == .installments) ? 0 : parseDecimal(balanceText)
             if includesPlan {
@@ -159,10 +247,31 @@ struct DebtFormView: View {
                 if target.plans == nil { target.plans = [] }
                 target.plans?.append(plan)
             }
-        case .mortgage, .studentLoan:
+        case .mortgage, .autoLoan, .studentLoan:
             target.balance = parseDecimal(balanceText)
-            target.monthlyPayment = parseDecimal(paymentText)
+            if kind == .autoLoan {
+                target.insuranceAmount = parseDecimal(insuranceText)
+            }
+        }
+
+        if autoPay, let account = selectedPayAccount, monthly > 0 {
+            let plan: RecurringPayment
+            if let existing = target.autoPayment {
+                plan = existing
+            } else {
+                plan = RecurringPayment()
+                context.insert(plan)
+                plan.debt = target
+            }
+            plan.account = account
+            plan.amount = monthly
+            if rescheduleAutoPay {
+                plan.reschedule(start: firstAutoPayDate)
+            }
+        } else if !autoPay, let existing = target.autoPayment {
+            context.delete(existing)
         }
         try? context.save()
+        RecurringDeposits.update(in: context)
     }
 }

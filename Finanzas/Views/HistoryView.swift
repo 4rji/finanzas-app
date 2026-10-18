@@ -55,10 +55,10 @@ struct HistoryView: View {
         return groups.keys.sorted(by: >).map { (start: $0, items: groups[$0] ?? []) }
     }
 
-    /// Los pagos solo se pueden borrar (y se le regresa el monto a la deuda); para corregir uno,
-    /// se borra y se registra de nuevo.
+    /// Los pagos y transferencias solo se pueden borrar (al pago se le regresa el monto a la deuda);
+    /// para corregir uno, se borra y se registra de nuevo.
     private func isEditable(_ movement: Movement) -> Bool {
-        movement.kind != .payment
+        movement.kind != .payment && movement.kind != .transfer
     }
 }
 
@@ -72,7 +72,7 @@ private struct MovementRow: View {
         HStack(spacing: 12) {
             Image(systemName: movement.kind.systemImage)
                 .appFont(.title3)
-                .foregroundStyle(movement.kind == .payment ? Color.orange : Color.green)
+                .foregroundStyle(iconColor)
                 .frame(width: 32 * scale)
             VStack(alignment: .leading, spacing: 2) {
                 Text(movement.note.isEmpty ? t.movementKindName(movement.kind) : movement.note)
@@ -82,12 +82,26 @@ private struct MovementRow: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Text(t.signedMoney(movement.signedAmount))
-                .monospacedDigit()
-                .foregroundStyle(movement.signedAmount < 0 ? Color.primary : Color.green)
+            // Una transferencia no entra ni sale del total: solo cambia de cuenta.
+            if movement.kind == .transfer {
+                Text(t.money(movement.amount))
+                    .monospacedDigit()
+            } else {
+                Text(t.signedMoney(movement.signedAmount))
+                    .monospacedDigit()
+                    .foregroundStyle(movement.signedAmount < 0 ? Color.primary : Color.green)
+            }
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
+    }
+
+    private var iconColor: Color {
+        switch movement.kind {
+        case .payment: return .orange
+        case .transfer: return .blue
+        case .deposit, .extra: return .green
+        }
     }
 
     private var subtitle: String {
@@ -95,7 +109,9 @@ private struct MovementRow: View {
         if !movement.note.isEmpty {
             parts.insert(t.movementKindName(movement.kind), at: 0)
         }
-        if showsAccount, let account = movement.account {
+        if movement.kind == .transfer {
+            parts.append(t.route(from: movement.account?.name ?? "", to: movement.toAccount?.name ?? ""))
+        } else if showsAccount, let account = movement.account {
             parts.append(account.name)
         }
         return parts.joined(separator: " · ")

@@ -162,6 +162,18 @@ struct UsageText: View {
     }
 }
 
+extension View {
+    /// Casilla con palomita en Mac; en iPhone se queda el interruptor normal.
+    @ViewBuilder
+    func checkboxStyle() -> some View {
+        #if os(macOS)
+        toggleStyle(.checkbox)
+        #else
+        self
+        #endif
+    }
+}
+
 extension Color {
     #if os(macOS)
     static let groupedBackground = Color(nsColor: .windowBackgroundColor)

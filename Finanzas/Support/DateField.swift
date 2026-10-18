@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Fila de fecha. Al tocarla se elige primero el día, luego el mes y al final el año.
+/// Fila de fecha. Al tocarla se elige primero el día, luego el mes y al final el año; con Listo se
+/// cierra en cualquier paso.
 struct DateField: View {
     @Environment(\.l10n) private var t
     let title: String
@@ -89,6 +90,13 @@ private struct StepDatePicker: View {
             }
             // Mismo alto en los tres pasos para que el popover no brinque.
             .frame(height: 5 * cellHeight + 4 * spacing)
+
+            // Cada toque ya guarda; con Listo se cierra sin tener que pasar por mes y año.
+            HStack {
+                Spacer()
+                Button(t.done, action: onDone)
+                    .buttonStyle(.borderedProminent)
+            }
         }
         .padding(14 * scale)
         .frame(width: width)

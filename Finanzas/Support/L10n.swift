@@ -38,6 +38,8 @@ struct L10n {
 
     var appName: String { "Finanzas" }
     var debts: String { pick("Debts", "Deudas") }
+    var investments: String { pick("Investments", "Inversiones") }
+    var assets: String { pick("Property", "Bienes") }
     var totalDebt: String { pick("Total debt", "Deuda total") }
     var add: String { pick("Add", "Agregar") }
     var save: String { pick("Save", "Guardar") }
@@ -48,6 +50,12 @@ struct L10n {
     var settings: String { pick("Settings", "Configuración") }
     var languageTitle: String { pick("Language", "Idioma") }
     var textSizeTitle: String { pick("Text size", "Tamaño de letra") }
+    var showOnHome: String { pick("Show on home screen", "Mostrar en inicio") }
+    var showOnHomeFooter: String { pick("Hide the categories you don't need.", "Oculta las categorías que no necesites.") }
+    var everythingHidden: String { pick("Everything is hidden", "Todo está oculto") }
+    var everythingHiddenMessage: String {
+        pick("Turn the categories back on in Settings.", "Vuelve a mostrar las categorías en Configuración.")
+    }
 
     func textSizeName(_ size: TextSize) -> String {
         switch size {
@@ -68,14 +76,15 @@ struct L10n {
 
     var noDebtsTitle: String { pick("No debts yet", "Aún no hay deudas") }
     var noDebtsMessage: String {
-        pick("Use the + button to add a credit card, mortgage or student loan.",
-             "Usa el botón + para agregar una tarjeta, hipoteca o préstamo estudiantil.")
+        pick("Use the + button to add a credit card, mortgage, auto loan or student loan.",
+             "Usa el botón + para agregar una tarjeta, hipoteca, préstamo de auto o préstamo estudiantil.")
     }
 
     func kindName(_ kind: DebtKind) -> String {
         switch kind {
         case .creditCard: return pick("Credit card", "Tarjeta de crédito")
         case .mortgage: return pick("Mortgage", "Hipoteca")
+        case .autoLoan: return pick("Auto loan", "Préstamo de auto")
         case .studentLoan: return pick("Student loan", "Préstamo estudiantil")
         }
     }
@@ -84,6 +93,7 @@ struct L10n {
         switch kind {
         case .creditCard: return pick("Credit cards", "Tarjetas de crédito")
         case .mortgage: return pick("Mortgages", "Hipotecas")
+        case .autoLoan: return pick("Auto loans", "Préstamos de auto")
         case .studentLoan: return pick("Student loans", "Préstamos estudiantiles")
         }
     }
@@ -92,6 +102,7 @@ struct L10n {
         switch kind {
         case .creditCard: return pick("e.g. Visa Gold", "ej. Visa Oro")
         case .mortgage: return pick("e.g. House", "ej. Casa")
+        case .autoLoan: return pick("e.g. Car", "ej. Auto")
         case .studentLoan: return pick("e.g. University", "ej. Universidad")
         }
     }
@@ -126,6 +137,11 @@ struct L10n {
     var currentBalance: String { pick("Current balance", "Deuda corriente") }
     var interestRateApprox: String { pick("Annual interest rate (approx.)", "Tasa de interés anual (aprox.)") }
     var monthlyInterestApprox: String { pick("Approx. monthly interest", "Interés mensual aprox.") }
+    var cardPlannedPayment: String { pick("Monthly payment you make (optional)", "Pago mensual que haces (opcional)") }
+    var cardPlannedPaymentFooter: String {
+        pick("The monthly payment is used to estimate when you'll pay off the card. Include installment payments.",
+             "El pago mensual sirve para estimar cuándo terminas de pagar la tarjeta. Incluye las mensualidades a meses.")
+    }
     var cardFormFooter: String {
         pick("Revolving part only. Installment plans are managed from the card's detail.",
              "Solo la parte revolvente. Las compras a meses se manejan en el detalle de la tarjeta.")
@@ -273,6 +289,46 @@ struct L10n {
              "El pago mensual no cubre los intereses, así que la deuda nunca se liquidaría.")
     }
 
+    // Seguro del auto
+    var insurance: String { pick("Insurance", "Seguro") }
+    var insuranceAmount: String { pick("Insurance payment", "Pago del seguro") }
+    var insuranceFooter: String {
+        pick("Just a note so you know how much it is. It doesn't change the loan payment or the total.",
+             "Solo es una nota para saber cuánto es. No cambia el pago del préstamo ni el total.")
+    }
+
+    func insuranceNote(_ value: Double) -> String {
+        pick("Insurance ", "Seguro ") + money(value) + pick(" (note)", " (nota)")
+    }
+
+    // Tiempo para liquidar
+    var payoffQuestion: String { pick("When will I pay off my debts?", "¿Cuándo termino de pagar?") }
+    var payoffHint: String {
+        pick("Each debt with its payment, balance and time left", "Cada deuda con su pago, saldo y tiempo que falta")
+    }
+    var monthlyPayments: String { pick("Monthly payments", "Pagos mensuales") }
+    var debtFreeApprox: String { pick("Debt-free (approx.)", "Sin deudas (aprox.)") }
+    var payoffFooter: String {
+        pick("Approximate, with each debt's monthly payment and rate. On cards the payment covers installments first and then the balance with the highest rate; when a promo ends, the card's rate is used.",
+             "Aproximado, con el pago mensual y la tasa de cada deuda. En tarjetas el pago cubre primero las mensualidades a meses y luego el saldo con la tasa más alta; al vencer una promoción se usa la tasa de la tarjeta.")
+    }
+    var noPaymentSet: String { pick("No monthly payment set. Add it in Edit.", "Sin pago mensual. Agrégalo en Editar.") }
+    var paymentNotEnough: String { pick("The payment isn't enough to pay it off.", "El pago no alcanza para liquidarla.") }
+
+    func paymentShort(_ value: Double) -> String {
+        pick("Payment ", "Pago ") + perMonth(value)
+    }
+
+    func payoffIn(months: Int, date: Date) -> String {
+        isSpanish
+            ? "Se liquida en \(duration(months: months)) (\(monthYear(date)))"
+            : "Paid off in \(duration(months: months)) (\(monthYear(date)))"
+    }
+
+    func promoEnds(_ date: Date) -> String {
+        pick("Promo ends ", "La promoción vence el ") + self.date(date)
+    }
+
     var tableMonth: String { pick("Month", "Mes") }
     var payment: String { pick("Payment", "Pago") }
     var interest: String { pick("Interest", "Interés") }
@@ -302,6 +358,87 @@ struct L10n {
              "Eliminar la cuenta también borra su historial y sus ingresos recurrentes.")
     }
     var totalBalance: String { pick("Total balance", "Saldo total") }
+
+    // Inversiones
+    var investment: String { pick("Investment", "Inversión") }
+    var noInvestmentsTitle: String { pick("No investments yet", "Aún no hay inversiones") }
+    var noInvestmentsMessage: String {
+        pick("Add an investment like a 401(k), FSA or stocks with what it's worth today.",
+             "Agrega una inversión como 401(k), FSA o acciones con lo que vale hoy.")
+    }
+    var addInvestment: String { pick("Add investment", "Agregar inversión") }
+    var addInvestmentHint: String { pick("Add a 401(k), FSA or stocks", "Agrega 401(k), FSA o acciones") }
+    var investmentNamePlaceholder: String { pick("e.g. FSA, Stocks", "ej. FSA, Acciones") }
+    var investmentValue: String { pick("Current value", "Valor actual") }
+    var investmentFooter: String {
+        pick("Enter what it's worth today. Transfers and contributions update it.",
+             "Escribe cuánto vale hoy. Las transferencias y aportes lo van actualizando.")
+    }
+    var totalValue: String { pick("Total value", "Valor total") }
+
+    func investmentCount(_ n: Int) -> String {
+        if isSpanish { return n == 1 ? "1 inversión" : "\(n) inversiones" }
+        return n == 1 ? "1 investment" : "\(n) investments"
+    }
+
+    var contribution: String { pick("Contribution", "Aporte") }
+    var recurringContribution: String { pick("Recurring contribution", "Aporte recurrente") }
+    var recurringContributions: String { pick("Recurring contributions", "Aportes recurrentes") }
+    var addRecurringContribution: String { pick("Add recurring contribution", "Agregar aporte recurrente") }
+    var noRecurringContributions: String { pick("No recurring contributions", "Sin aportes recurrentes") }
+    var monthlyAmountApprox: String { pick("Per month (approx.)", "Al mes (aprox.)") }
+    var investmentsHistoryHint: String {
+        pick("Transfers and contributions are listed in Accounts → History.",
+             "Las transferencias y aportes se ven en Cuentas → Historial.")
+    }
+
+    func contributionsPerMonthShort(_ value: Double) -> String {
+        pick("Contributions ", "Aportes ") + approxPerMonth(value)
+    }
+
+    // Mover dinero
+    var transfer: String { pick("Transfer", "Transferencia") }
+    var moveMoney: String { pick("Move money", "Mover dinero") }
+    var fromLabel: String { pick("From", "Desde") }
+    var toLabel: String { pick("To", "Hacia") }
+    var outsideSource: String { pick("Somewhere else (e.g. salary)", "Otro lugar (ej. sueldo)") }
+    var outsideShort: String { pick("Elsewhere", "Otro lugar") }
+    var repeats: String { pick("Repeats", "Se repite") }
+    var moveNotePlaceholder: String { pick("e.g. Savings", "ej. Ahorro") }
+    var moveMoneyFooter: String {
+        pick("Moves money between your accounts and investments. If it comes from somewhere else, like your salary, it's only added to the destination.",
+             "Mueve dinero entre tus cuentas e inversiones. Si viene de otro lugar, como tu sueldo, solo se suma al destino.")
+    }
+    var moveRecurringFooter: String {
+        pick("It's applied automatically on each date, starting with the next one.",
+             "Se aplica solo en cada fecha, desde la próxima.")
+    }
+
+    func balanceAfter(_ name: String) -> String {
+        isSpanish ? "Saldo de \(name) después" : "\(name) balance after"
+    }
+
+    /// "Cheques → FSA"; sin origen, "Otro lugar → FSA".
+    func route(from: String?, to: String) -> String {
+        (from ?? outsideShort) + " → " + to
+    }
+
+    // Bienes
+    var asset: String { pick("Item", "Bien") }
+    var noAssetsTitle: String { pick("Nothing here yet", "Aún no hay bienes") }
+    var noAssetsMessage: String {
+        pick("Add things you own, like a house or a car, with what they're worth.",
+             "Agrega cosas que tienes, como una casa o un auto, con lo que valen.")
+    }
+    var addAsset: String { pick("Add item", "Agregar bien") }
+    var addAssetHint: String { pick("Add a house, car or anything of value", "Agrega casa, auto o algo de valor") }
+    var assetNamePlaceholder: String { pick("e.g. House", "ej. Casa") }
+    var assetValue: String { pick("Value", "Valor") }
+
+    func assetCount(_ n: Int) -> String {
+        if isSpanish { return n == 1 ? "1 bien" : "\(n) bienes" }
+        return n == 1 ? "1 item" : "\(n) items"
+    }
 
     func accountCount(_ n: Int) -> String {
         if isSpanish { return n == 1 ? "1 cuenta" : "\(n) cuentas" }
@@ -354,13 +491,13 @@ struct L10n {
     }
 
     var historyHint: String {
-        pick("Deposits, extra income and payments are listed in History.",
-             "Los depósitos, ingresos extra y pagos se ven en Historial.")
+        pick("Deposits, extra income, payments and transfers are listed in History.",
+             "Los depósitos, ingresos extra, pagos y transferencias se ven en Historial.")
     }
     var noMovementsTitle: String { pick("No movements yet", "Aún no hay movimientos") }
     var noMovementsMessage: String {
-        pick("Deposits, extra income and payments will show up here.",
-             "Aquí aparecerán los depósitos, ingresos extra y pagos.")
+        pick("Deposits, extra income, payments and transfers will show up here.",
+             "Aquí aparecerán los depósitos, ingresos extra, pagos y transferencias.")
     }
 
     func movementKindName(_ kind: MovementKind) -> String {
@@ -368,6 +505,7 @@ struct L10n {
         case .deposit: return pick("Deposit", "Depósito")
         case .extra: return extraIncome
         case .payment: return payment
+        case .transfer: return transfer
         }
     }
 
@@ -394,6 +532,33 @@ struct L10n {
         pick("It's subtracted from the revolving balance. Installment payments already go down on their own each month, so they aren't subtracted twice.",
              "Se resta del saldo revolvente. Las mensualidades a meses ya bajan solas cada mes, así que no se restan dos veces.")
     }
+    // Pago automático
+    var autoPay: String { pick("Automatic payment", "Pago automático") }
+    var autoPayToggle: String { pick("Pay automatically from an account", "Pagar automáticamente desde una cuenta") }
+    var autoPayFooter: String {
+        pick("Each month the monthly payment comes out of the account and lowers the debt, like a regular payment.",
+             "Cada mes el pago mensual se descuenta de la cuenta y baja la deuda, como un pago normal.")
+    }
+    var autoPayNeedsAccount: String {
+        pick("Add a checking account to pay automatically.", "Agrega una cuenta de cheques para pagar automáticamente.")
+    }
+    var autoPayNeedsAmount: String { pick("Enter the monthly payment.", "Escribe el pago mensual.") }
+    var paymentDay: String { pick("Payment day", "Día de pago") }
+    var nextAutoPayment: String { pick("Next automatic payment", "Próximo pago automático") }
+    var autoPayments: String { pick("Automatic payments", "Pagos automáticos") }
+    var repeatsMonthly: String { pick("Repeats every month", "Se repite cada mes") }
+    var firstPayment: String { pick("First payment", "Primer pago") }
+    var nextPayment: String { pick("Next payment", "Próximo pago") }
+    var recurringPaymentFooter: String {
+        pick("It's paid automatically every month starting on that date. It becomes the debt's monthly payment and replaces its automatic payment if it had one.",
+             "Se paga solo cada mes desde esa fecha. Queda como el pago mensual de la deuda y reemplaza su pago automático si ya tenía uno.")
+    }
+
+    /// "$500.00/mes desde Cheques · próximo 5 nov 2026".
+    func autoPaySummary(amount: Double, account: String, next: Date) -> String {
+        perMonth(amount) + pick(" from ", " desde ") + account + " · " + pick("next ", "próximo ") + date(next)
+    }
+
     var loanPaymentFooter: String {
         pick("Only the part that goes to principal lowers the balance (payment − this month's interest, approx.).",
              "Solo la parte que va a capital baja el saldo (pago − interés del mes, aprox.).")

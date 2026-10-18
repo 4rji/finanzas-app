@@ -25,6 +25,10 @@ struct CreditCardDetailView: View {
                     LabeledContent(t.availableCredit, value: t.money(max(debt.creditLimit - debt.totalOwed, 0)))
                 }
                 LabeledContent(t.nextDueDate, value: t.date(debt.nextDueDate))
+                if debt.monthlyPayment > 0 {
+                    LabeledContent(t.monthlyPayment, value: t.money(debt.monthlyPayment))
+                }
+                AutoPaymentLine(debt: debt)
             } header: {
                 Text(t.summary)
                     .appFont(.headline)

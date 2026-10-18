@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Detalle de hipoteca o préstamo estudiantil, con estimación aproximada de intereses.
+/// Detalle de hipoteca o préstamo de auto o estudiantil, con estimación aproximada de intereses.
 struct LoanDetailView: View {
     @Environment(\.l10n) private var t
     let debt: Debt
@@ -23,6 +23,7 @@ struct LoanDetailView: View {
                         .fontWeight(.semibold)
                         .monospacedDigit()
                 }
+                AutoPaymentLine(debt: debt)
             } header: {
                 Text(t.summary)
                     .appFont(.headline)
@@ -30,6 +31,19 @@ struct LoanDetailView: View {
                 Text(t.monthlyInterestFooter)
                     .appFont(.subheadline)
                     .foregroundStyle(.secondary)
+            }
+
+            if debt.insuranceAmount > 0 {
+                Section {
+                    LabeledContent(t.insuranceAmount, value: t.money(debt.insuranceAmount))
+                } header: {
+                    Label(t.insurance, systemImage: "shield")
+                        .appFont(.headline)
+                } footer: {
+                    Text(t.insuranceFooter)
+                        .appFont(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Section {

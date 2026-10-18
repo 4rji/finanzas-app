@@ -11,7 +11,7 @@ struct DebtDetailView: View {
             switch debt.kind {
             case .creditCard:
                 CreditCardDetailView(debt: debt)
-            case .mortgage, .studentLoan:
+            case .mortgage, .autoLoan, .studentLoan:
                 LoanDetailView(debt: debt)
             }
         }
@@ -33,6 +33,21 @@ struct DebtDetailView: View {
         }
         .sheet(isPresented: $paying) {
             PaymentFormView(debt: debt)
+        }
+    }
+}
+
+/// Pago automático de la deuda: monto, cuenta de donde sale y próxima fecha.
+struct AutoPaymentLine: View {
+    @Environment(\.l10n) private var t
+    let debt: Debt
+
+    var body: some View {
+        if let plan = debt.autoPayment, let account = plan.account {
+            LabeledContent(t.autoPay) {
+                Text(t.autoPaySummary(amount: plan.amount, account: account.name, next: plan.nextPayDate))
+                    .multilineTextAlignment(.trailing)
+            }
         }
     }
 }

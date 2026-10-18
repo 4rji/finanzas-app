@@ -1,18 +1,20 @@
 import SwiftUI
 import SwiftData
 
-/// Alta o edición de una cuenta y su saldo actual.
+/// Alta o edición de una cuenta de cheques o una inversión, con su saldo (o valor) actual.
 struct AccountFormView: View {
     @Environment(\.l10n) private var t
     @Environment(\.modelContext) private var context
 
     let account: Account?
+    let kind: AccountKind
 
     @State private var name: String
     @State private var balanceText: String
 
-    init(account: Account? = nil) {
+    init(account: Account? = nil, kind: AccountKind = .checking) {
         self.account = account
+        self.kind = account?.kind ?? kind
         _name = State(initialValue: account?.name ?? "")
         _balanceText = State(initialValue: editText(account?.balance ?? 0))
     }
@@ -21,20 +23,34 @@ struct AccountFormView: View {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private var isInvestment: Bool { kind == .investment }
+
     var body: some View {
         FormSheet(canSave: !trimmedName.isEmpty, onSave: save, onDelete: account == nil ? nil : delete) {
             Section {
-                TextRow(title: t.name, text: $name, prompt: t.accountNamePlaceholder)
-                DecimalField(title: t.accountBalance, text: $balanceText, prefix: t.currencySymbol)
+                TextRow(
+                    title: t.name,
+                    text: $name,
+                    prompt: isInvestment ? t.investmentNamePlaceholder : t.accountNamePlaceholder
+                )
+                DecimalField(
+                    title: isInvestment ? t.investmentValue : t.accountBalance,
+                    text: $balanceText,
+                    prefix: t.currencySymbol
+                )
             } header: {
-                Label(t.account, systemImage: "building.columns")
+                Label(isInvestment ? t.investment : t.account, systemImage: kind.systemImage)
                     .appFont(.headline)
             } footer: {
-                Text(account == nil ? t.accountFooter : t.accountFooter + " " + t.accountDeleteNote)
+                Text(account == nil ? footer : footer + " " + t.accountDeleteNote)
                     .appFont(.subheadline)
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    private var footer: String {
+        isInvestment ? t.investmentFooter : t.accountFooter
     }
 
     private func save() {
@@ -42,7 +58,7 @@ struct AccountFormView: View {
         if let account {
             target = account
         } else {
-            target = Account(name: trimmedName)
+            target = Account(name: trimmedName, kind: kind)
             context.insert(target)
         }
 

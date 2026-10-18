@@ -14,6 +14,7 @@ private enum NewItem: String, Identifiable {
     case income
     case extra
     case payment
+    case transfer
 
     var id: String { rawValue }
 }
@@ -21,11 +22,14 @@ private enum NewItem: String, Identifiable {
 /// Cuentas con su saldo e ingresos recurrentes; los movimientos van en la pestaña Historial.
 struct AccountsView: View {
     @Environment(\.l10n) private var t
-    @Query(sort: \Account.createdAt) private var accounts: [Account]
+    @Query(sort: \Account.createdAt) private var allAccounts: [Account]
     @Query private var debts: [Debt]
 
     @State private var tab: AccountsTab = .balance
     @State private var newItem: NewItem?
+
+    /// Las inversiones van en su propia pantalla.
+    private var accounts: [Account] { allAccounts.checking }
 
     var body: some View {
         Group {
@@ -33,7 +37,7 @@ struct AccountsView: View {
             case .balance:
                 AccountSummaryView(accounts: accounts, canPay: !debts.isEmpty) { newItem = $0 }
             case .history:
-                HistoryView(showsAccount: accounts.count > 1)
+                HistoryView(showsAccount: allAccounts.count > 1)
             }
         }
         .navigationTitle(t.accounts)
@@ -72,6 +76,12 @@ struct AccountsView: View {
                         Label(t.recordPayment, systemImage: MovementKind.payment.systemImage)
                     }
                     .disabled(accounts.isEmpty || debts.isEmpty)
+                    Button {
+                        newItem = .transfer
+                    } label: {
+                        Label(t.moveMoney, systemImage: MovementKind.transfer.systemImage)
+                    }
+                    .disabled(allAccounts.isEmpty)
                 } label: {
                     Label(t.add, systemImage: "plus")
                 }
@@ -83,6 +93,7 @@ struct AccountsView: View {
             case .income: RecurringIncomeFormView()
             case .extra: MovementFormView(kind: .extra)
             case .payment: PaymentFormView()
+            case .transfer: TransferFormView()
             }
         }
     }
@@ -91,7 +102,8 @@ struct AccountsView: View {
 private struct AccountSummaryView: View {
     @Environment(\.l10n) private var t
     @Environment(\.modelContext) private var context
-    @Query(sort: \RecurringIncome.createdAt) private var incomes: [RecurringIncome]
+    @Query(sort: \RecurringIncome.createdAt) private var allIncomes: [RecurringIncome]
+    @Query(sort: \RecurringPayment.createdAt) private var allAutoPayments: [RecurringPayment]
 
     let accounts: [Account]
     let canPay: Bool
@@ -99,6 +111,11 @@ private struct AccountSummaryView: View {
 
     @State private var editingAccount: Account?
     @State private var editingIncome: RecurringIncome?
+    @State private var editingAutoPayment: RecurringPayment?
+
+    /// Los aportes y transferencias de inversiones se ven en Inversiones.
+    private var incomes: [RecurringIncome] { allIncomes.filter { !$0.isInvestment } }
+    private var autoPayments: [RecurringPayment] { allAutoPayments.filter { $0.debt != nil } }
 
     var body: some View {
         if accounts.isEmpty {
@@ -158,10 +175,30 @@ private struct AccountSummaryView: View {
                     Text(t.recurringIncome)
                         .appFont(.headline)
                 } footer: {
-                    if !incomes.isEmpty {
+                    if incomes.monthlyIncome > 0 {
                         Text(t.monthlyIncome + ": " + t.money(incomes.monthlyIncome))
                             .appFont(.subheadline)
                             .foregroundStyle(.secondary)
+                    }
+                }
+
+                if !autoPayments.isEmpty {
+                    Section {
+                        ForEach(autoPayments) { plan in
+                            Button {
+                                editingAutoPayment = plan
+                            } label: {
+                                AutoPaymentRow(plan: plan)
+                            }
+                            .buttonStyle(.plain)
+                            .contextMenu {
+                                Button(t.edit) { editingAutoPayment = plan }
+                                Button(t.delete, role: .destructive) { delete(plan) }
+                            }
+                        }
+                    } header: {
+                        Text(t.autoPayments)
+                            .appFont(.headline)
                     }
                 }
 
@@ -177,6 +214,11 @@ private struct AccountSummaryView: View {
                         Label(t.recordPayment, systemImage: MovementKind.payment.systemImage)
                     }
                     .disabled(!canPay)
+                    Button {
+                        onAdd(.transfer)
+                    } label: {
+                        Label(t.moveMoney, systemImage: MovementKind.transfer.systemImage)
+                    }
                 } footer: {
                     Text(t.historyHint)
                         .appFont(.subheadline)
@@ -188,7 +230,14 @@ private struct AccountSummaryView: View {
                 AccountFormView(account: account)
             }
             .sheet(item: $editingIncome) { income in
-                RecurringIncomeFormView(income: income)
+                if income.fromAccount != nil {
+                    TransferFormView(recurring: income)
+                } else {
+                    RecurringIncomeFormView(income: income)
+                }
+            }
+            .sheet(item: $editingAutoPayment) { plan in
+                PaymentFormView(recurring: plan)
             }
         }
     }
@@ -197,15 +246,20 @@ private struct AccountSummaryView: View {
         context.delete(income)
         try? context.save()
     }
+
+    private func delete(_ plan: RecurringPayment) {
+        context.delete(plan)
+        try? context.save()
+    }
 }
 
-private struct AccountRow: View {
+struct AccountRow: View {
     @Environment(\.l10n) private var t
     let account: Account
 
     var body: some View {
         HStack(spacing: 12) {
-            Label(account.name, systemImage: "building.columns")
+            Label(account.name, systemImage: account.kind.systemImage)
                 .appFont(.body, weight: .medium)
             Spacer()
             Text(t.money(account.balance))
@@ -218,7 +272,7 @@ private struct AccountRow: View {
     }
 }
 
-private struct RecurringIncomeRow: View {
+struct RecurringIncomeRow: View {
     @Environment(\.l10n) private var t
     let income: RecurringIncome
 
@@ -231,11 +285,42 @@ private struct RecurringIncomeRow: View {
                 Text(t.money(income.amount))
                     .monospacedDigit()
             }
-            Text([
-                t.frequencyName(income.frequency),
-                t.nextDeposit + " " + t.date(income.nextPayDate),
-                t.approxPerMonth(income.monthlyAmount),
-            ].joined(separator: " · "))
+            Text(details.joined(separator: " · "))
+                .appFont(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 2)
+        .contentShape(Rectangle())
+    }
+
+    private var details: [String] {
+        var parts = [
+            t.frequencyName(income.frequency),
+            t.nextDeposit + " " + t.date(income.nextPayDate),
+            t.approxPerMonth(income.monthlyAmount),
+        ]
+        // Las transferencias y los aportes dicen de dónde sale el dinero y a dónde llega.
+        if income.fromAccount != nil || income.isInvestment {
+            parts.insert(t.route(from: income.fromAccount?.name, to: income.account?.name ?? ""), at: 0)
+        }
+        return parts
+    }
+}
+
+private struct AutoPaymentRow: View {
+    @Environment(\.l10n) private var t
+    let plan: RecurringPayment
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 6) {
+                Label(plan.debt?.name ?? "", systemImage: plan.debt?.kind.systemImage ?? "creditcard")
+                    .appFont(.body, weight: .medium)
+                Spacer()
+                Text(t.money(plan.amount))
+                    .monospacedDigit()
+            }
+            Text(t.autoPaySummary(amount: plan.amount, account: plan.account?.name ?? "", next: plan.nextPayDate))
                 .appFont(.subheadline)
                 .foregroundStyle(.secondary)
         }
