@@ -7,11 +7,15 @@ struct FinanzasApp: App {
 
     init() {
         do {
-            // `.automatic` sincroniza con el contenedor de iCloud de los entitlements, usando la
-            // cuenta de iCloud del dispositivo. Sin cuenta de iCloud los datos se quedan locales.
+            // Sincronización con iCloud APAGADA por ahora: los datos se quedan en cada dispositivo.
+            // Para activarla (requiere cuenta de Apple Developer de pago):
+            // 1. En el target, Build Settings: CODE_SIGN_ENTITLEMENTS = Config/Finanzas-iOS.entitlements,
+            //    CODE_SIGN_ENTITLEMENTS[sdk=macosx*] = Config/Finanzas-macOS.entitlements e
+            //    INFOPLIST_FILE[sdk=iphoneos*] / [sdk=iphonesimulator*] = Config/Info-iOS.plist.
+            // 2. Cambiar `.none` por `.automatic` aquí abajo.
             container = try ModelContainer(
                 for: Debt.self, InstallmentPlan.self, Income.self,
-                configurations: ModelConfiguration("Finanzas", cloudKitDatabase: .automatic)
+                configurations: ModelConfiguration("Finanzas", cloudKitDatabase: .none)
             )
         } catch {
             fatalError("No se pudo abrir la base de datos: \(error)")
