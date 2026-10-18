@@ -2,7 +2,9 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(\.l10n) private var t
+    @Environment(\.textScale) private var scale
     @AppStorage(AppLanguage.storageKey) private var language: AppLanguage = .deviceDefault
+    @AppStorage(TextSize.storageKey) private var textSize: TextSize = .large
 
     var body: some View {
         Form {
@@ -11,8 +13,14 @@ struct SettingsView: View {
                     Text(option.displayName).tag(option)
                 }
             }
+            Picker(t.textSizeTitle, selection: $textSize) {
+                ForEach(TextSize.allCases) { size in
+                    Text(t.textSizeName(size)).tag(size)
+                }
+            }
         }
         .formStyle(.grouped)
+        .frame(width: 420 * scale)
         .navigationTitle(t.settings)
     }
 }

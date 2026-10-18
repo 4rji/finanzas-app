@@ -15,6 +15,7 @@ final class Debt {
     var interestRate: Double = 0
     var monthlyPayment: Double = 0
     var paymentDueDay: Int = 1
+    var creditLimit: Double = 0
 
     @Relationship(deleteRule: .cascade, inverse: \InstallmentPlan.debt)
     var plans: [InstallmentPlan]? = []
@@ -52,6 +53,11 @@ final class Debt {
         try? modelContext?.save()
     }
 
+    /// Fracción del límite usada (revolvente + a meses + transferencias). nil si no tiene límite.
+    var creditUsage: Double? {
+        creditLimit > 0 ? totalOwed / creditLimit : nil
+    }
+
     var revolvingMonthlyInterest: Double {
         balance * interestRate / 100 / 12
     }
@@ -85,5 +91,14 @@ final class Debt {
 
     var totalOwed: Double {
         kind == .creditCard ? balance + installmentsRemaining : balance
+    }
+}
+
+extension Sequence where Element == Debt {
+    /// Uso de crédito de todas las tarjetas que tienen límite. nil si ninguna lo tiene.
+    var creditUsage: (used: Double, limit: Double)? {
+        let cards = filter { $0.kind == .creditCard && $0.creditLimit > 0 }
+        guard !cards.isEmpty else { return nil }
+        return (cards.reduce(0) { $0 + $1.totalOwed }, cards.reduce(0) { $0 + $1.creditLimit })
     }
 }

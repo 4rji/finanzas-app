@@ -21,16 +21,15 @@ struct FinanzasApp: App {
             NavigationStack {
                 DashboardView()
             }
-            .appLanguage()
-            .frame(minWidth: 520, minHeight: 440)
+            .appPreferences()
+            .frame(minWidth: 560, minHeight: 480)
         }
         .modelContainer(container)
-        .defaultSize(width: 820, height: 620)
+        .defaultSize(width: 960, height: 720)
 
         Settings {
             SettingsView()
-                .frame(width: 420)
-                .appLanguage()
+                .appPreferences()
         }
     }
 }

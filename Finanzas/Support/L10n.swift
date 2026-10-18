@@ -47,6 +47,15 @@ struct L10n {
     var done: String { pick("Done", "Listo") }
     var settings: String { pick("Settings", "Configuración") }
     var languageTitle: String { pick("Language", "Idioma") }
+    var textSizeTitle: String { pick("Text size", "Tamaño de letra") }
+
+    func textSizeName(_ size: TextSize) -> String {
+        switch size {
+        case .normal: return "Normal"
+        case .large: return pick("Large", "Grande")
+        case .extraLarge: return pick("Extra large", "Muy grande")
+        }
+    }
     var summary: String { pick("Summary", "Resumen") }
     var name: String { pick("Name", "Nombre") }
 
@@ -88,6 +97,27 @@ struct L10n {
     }
 
     // MARK: Tarjeta
+
+    var creditLimit: String { pick("Credit limit", "Límite de crédito") }
+    var creditUsed: String { pick("Credit used", "Crédito usado") }
+    var availableCredit: String { pick("Available credit", "Crédito disponible") }
+
+    /// "45%" a partir de una fracción (0.45).
+    func usage(_ fraction: Double) -> String {
+        (fraction * 100).formatted(.number.precision(.fractionLength(0)).locale(locale)) + "%"
+    }
+
+    func usageUsed(_ fraction: Double) -> String {
+        usage(fraction) + pick(" used", " usado")
+    }
+
+    func creditUsedShort(_ fraction: Double) -> String {
+        usage(fraction) + pick(" of credit used", " de crédito usado")
+    }
+
+    func amountOf(_ used: Double, _ limit: Double) -> String {
+        money(used) + pick(" of ", " de ") + money(limit)
+    }
 
     var paymentDueDay: String { pick("Payment due day", "Día límite de pago") }
     var nextDueDate: String { pick("Next due date", "Próximo vencimiento") }
@@ -283,22 +313,5 @@ extension EnvironmentValues {
     var l10n: L10n {
         get { self[L10nKey.self] }
         set { self[L10nKey.self] = newValue }
-    }
-}
-
-/// Lee el idioma guardado en Configuración y lo aplica a toda la jerarquía de vistas.
-private struct AppLanguageModifier: ViewModifier {
-    @AppStorage(AppLanguage.storageKey) private var language: AppLanguage = .deviceDefault
-
-    func body(content: Content) -> some View {
-        content
-            .environment(\.l10n, L10n(language: language))
-            .environment(\.locale, language.locale)
-    }
-}
-
-extension View {
-    func appLanguage() -> some View {
-        modifier(AppLanguageModifier())
     }
 }

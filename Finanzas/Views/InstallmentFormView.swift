@@ -31,6 +31,7 @@ struct InstallmentFormView: View {
                     Toggle(t.includedInBalance, isOn: $includedInBalance)
                 } footer: {
                     Text(t.includedInBalanceFooter)
+                        .appFont(.subheadline)
                         .foregroundStyle(.secondary)
                 }
             }

@@ -5,6 +5,7 @@ import SwiftUI
 struct FormSheet<Content: View>: View {
     @Environment(\.l10n) private var t
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.textScale) private var scale
 
     let canSave: Bool
     let onSave: () -> Void
@@ -51,7 +52,7 @@ struct FormSheet<Content: View>: View {
             }
             .padding()
         }
-        .frame(minWidth: 460, minHeight: 420)
+        .frame(minWidth: 460 * scale, minHeight: 420 * scale)
     }
 }
 
@@ -91,6 +92,24 @@ struct DecimalField: View {
                 }
             }
         }
+    }
+}
+
+/// Porcentaje de crédito usado; naranja desde 70% y rojo desde 90%.
+struct UsageText: View {
+    @Environment(\.l10n) private var t
+    let fraction: Double
+
+    var body: some View {
+        Text(t.usage(fraction))
+            .monospacedDigit()
+            .foregroundStyle(color)
+    }
+
+    private var color: Color {
+        if fraction >= 0.9 { return .red }
+        if fraction >= 0.7 { return .orange }
+        return .primary
     }
 }
 

@@ -22,6 +22,7 @@ struct DebtFormView: View {
     @State private var balanceText: String
     @State private var rateText: String
     @State private var paymentText: String
+    @State private var limitText: String
     @State private var dueDay: Int
 
     // Solo tarjeta nueva: saldo revolvente y/o meses sin intereses.
@@ -35,6 +36,7 @@ struct DebtFormView: View {
         _balanceText = State(initialValue: editText(debt?.balance ?? 0))
         _rateText = State(initialValue: editText(debt?.interestRate ?? 0))
         _paymentText = State(initialValue: editText(debt?.monthlyPayment ?? 0))
+        _limitText = State(initialValue: editText(debt?.creditLimit ?? 0))
         _dueDay = State(initialValue: debt?.paymentDueDay ?? 1)
     }
 
@@ -62,7 +64,7 @@ struct DebtFormView: View {
 
     private var header: some View {
         Label(t.kindName(kind), systemImage: kind.systemImage)
-            .font(.headline)
+            .appFont(.headline)
     }
 
     @ViewBuilder
@@ -72,6 +74,7 @@ struct DebtFormView: View {
             if !isNewCard {
                 DecimalField(title: t.revolvingSection, text: $balanceText, prefix: t.currencySymbol)
             }
+            DecimalField(title: t.creditLimit, text: $limitText, prefix: t.currencySymbol)
             DecimalField(title: t.interestRateApprox, text: $rateText, suffix: "%")
             Picker(t.paymentDueDay, selection: $dueDay) {
                 ForEach(1...31, id: \.self) { day in
@@ -83,6 +86,7 @@ struct DebtFormView: View {
         } footer: {
             if !isNewCard {
                 Text(t.cardFormFooter)
+                    .appFont(.subheadline)
                     .foregroundStyle(.secondary)
             }
         }
@@ -101,8 +105,10 @@ struct DebtFormView: View {
                 }
             } header: {
                 Text(t.balanceSection)
+                    .appFont(.headline)
             } footer: {
                 Text(t.balanceTypeFooter)
+                    .appFont(.subheadline)
                     .foregroundStyle(.secondary)
             }
 
@@ -122,6 +128,7 @@ struct DebtFormView: View {
             header
         } footer: {
             Text(t.approxNote)
+                .appFont(.subheadline)
                 .foregroundStyle(.secondary)
         }
     }
@@ -141,6 +148,7 @@ struct DebtFormView: View {
         switch kind {
         case .creditCard:
             target.paymentDueDay = dueDay
+            target.creditLimit = parseDecimal(limitText)
             target.balance = (isNewCard && balanceType == .installments) ? 0 : parseDecimal(balanceText)
             if includesPlan {
                 let plan = InstallmentPlan(kind: planDraft.kind)

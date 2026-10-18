@@ -30,12 +30,21 @@ struct DebtsListView: View {
                                 .fontWeight(.semibold)
                                 .monospacedDigit()
                         }
+                        if let usage = debts.creditUsage {
+                            LabeledContent(t.creditUsed) {
+                                HStack(spacing: 6) {
+                                    Text(t.amountOf(usage.used, usage.limit))
+                                        .foregroundStyle(.secondary)
+                                    UsageText(fraction: usage.used / usage.limit)
+                                }
+                            }
+                        }
                     }
 
                     ForEach(DebtKind.allCases) { kind in
                         let items = debts.filter { $0.kind == kind }
                         if !items.isEmpty {
-                            Section(t.kindPlural(kind)) {
+                            Section {
                                 ForEach(items) { debt in
                                     NavigationLink {
                                         DebtDetailView(debt: debt)
@@ -48,6 +57,9 @@ struct DebtsListView: View {
                                         }
                                     }
                                 }
+                            } header: {
+                                Text(t.kindPlural(kind))
+                                    .appFont(.headline)
                             }
                         }
                     }
@@ -88,19 +100,20 @@ struct DebtsListView: View {
 
 private struct DebtRow: View {
     @Environment(\.l10n) private var t
+    @Environment(\.textScale) private var scale
     let debt: Debt
 
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: debt.kind.systemImage)
-                .font(.title3)
+                .appFont(.title3)
                 .foregroundStyle(.tint)
-                .frame(width: 32)
+                .frame(width: 32 * scale)
             VStack(alignment: .leading, spacing: 2) {
                 Text(debt.name)
-                    .font(.body.weight(.medium))
+                    .appFont(.body, weight: .medium)
                 Text(subtitle)
-                    .font(.caption)
+                    .appFont(.subheadline)
                     .foregroundStyle(.secondary)
             }
             Spacer()
@@ -113,7 +126,9 @@ private struct DebtRow: View {
     private var subtitle: String {
         switch debt.kind {
         case .creditCard:
-            return t.dueShort + " " + t.shortDate(debt.nextDueDate)
+            let due = t.dueShort + " " + t.shortDate(debt.nextDueDate)
+            guard let usage = debt.creditUsage else { return due }
+            return due + " · " + t.usageUsed(usage)
         case .mortgage, .studentLoan:
             return [
                 t.percent(debt.interestRate),

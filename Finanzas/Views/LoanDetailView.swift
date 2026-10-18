@@ -25,8 +25,10 @@ struct LoanDetailView: View {
                 }
             } header: {
                 Text(t.summary)
+                    .appFont(.headline)
             } footer: {
                 Text(t.monthlyInterestFooter)
+                    .appFont(.subheadline)
                     .foregroundStyle(.secondary)
             }
 
@@ -49,8 +51,11 @@ struct LoanDetailView: View {
                 }
             } header: {
                 Text(t.estimateSection)
+                    .appFont(.headline)
             } footer: {
                 Text(t.approxNote)
+                    .appFont(.subheadline)
+                    .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)

@@ -11,19 +11,32 @@ struct CreditCardDetailView: View {
         let plans = debt.installmentPlans
 
         Form {
-            Section(t.summary) {
+            Section {
                 LabeledContent(t.totalDebt) {
                     Text(t.money(debt.totalOwed))
                         .fontWeight(.semibold)
                         .monospacedDigit()
                 }
+                if let usage = debt.creditUsage {
+                    LabeledContent(t.creditLimit, value: t.money(debt.creditLimit))
+                    LabeledContent(t.creditUsed) {
+                        UsageText(fraction: usage)
+                    }
+                    LabeledContent(t.availableCredit, value: t.money(max(debt.creditLimit - debt.totalOwed, 0)))
+                }
                 LabeledContent(t.nextDueDate, value: t.date(debt.nextDueDate))
+            } header: {
+                Text(t.summary)
+                    .appFont(.headline)
             }
 
-            Section(t.revolvingSection) {
+            Section {
                 LabeledContent(t.currentBalance, value: t.money(debt.balance))
                 LabeledContent(t.interestRateApprox, value: t.percent(debt.interestRate))
                 LabeledContent(t.monthlyInterestApprox, value: t.money(debt.revolvingMonthlyInterest))
+            } header: {
+                Text(t.revolvingSection)
+                    .appFont(.headline)
             }
 
             Section {
@@ -50,9 +63,11 @@ struct CreditCardDetailView: View {
                 }
             } header: {
                 Text(t.installmentsSection)
+                    .appFont(.headline)
             } footer: {
                 if !plans.isEmpty {
                     Text(t.installmentsFooter(balance: debt.installmentsRemaining, monthly: debt.installmentsMonthly))
+                        .appFont(.subheadline)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -75,7 +90,7 @@ private struct InstallmentRow: View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
                 Label(t.planKindName(plan.kind), systemImage: plan.kind.systemImage)
-                    .font(.body.weight(.medium))
+                    .appFont(.body, weight: .medium)
                 if !plan.concept.isEmpty {
                     Text("· " + plan.concept)
                         .foregroundStyle(.secondary)
@@ -119,7 +134,7 @@ private struct InstallmentRow: View {
 
         if estimate.isExpired {
             Text(t.promoExpired + " · " + t.date(plan.promoEndDate))
-                .font(.caption)
+                .appFont(.subheadline)
                 .foregroundStyle(.orange)
         } else {
             caption([t.dueShort + " " + t.date(plan.promoEndDate), t.monthsLeftShort(estimate.paymentsLeft), rateText])
@@ -131,7 +146,7 @@ private struct InstallmentRow: View {
             }
             if let leftover = estimate.leftoverPayingMinimum, leftover > 0 {
                 Text(t.leftoverPayingMinimum(leftover))
-                    .font(.caption)
+                    .appFont(.subheadline)
                     .foregroundStyle(.orange)
             }
         }
@@ -139,7 +154,7 @@ private struct InstallmentRow: View {
 
     private func caption(_ parts: [String]) -> some View {
         Text(parts.joined(separator: " · "))
-            .font(.caption)
+            .appFont(.subheadline)
             .foregroundStyle(.secondary)
     }
 }

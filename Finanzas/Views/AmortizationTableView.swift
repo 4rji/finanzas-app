@@ -11,7 +11,7 @@ struct AmortizationTableView: View {
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
-            .width(44)
+            .width(56)
             TableColumn(t.tableMonth) { row in
                 Text(t.monthYear(row.date))
             }
