@@ -1,6 +1,15 @@
 import SwiftUI
 import SwiftData
 
+/// Cómo está el saldo de una tarjeta nueva.
+enum CardBalanceType: String, CaseIterable, Identifiable {
+    case revolving
+    case installments
+    case both
+
+    var id: String { rawValue }
+}
+
 /// Alta o edición de una deuda. Los campos cambian según el tipo.
 struct DebtFormView: View {
     @Environment(\.l10n) private var t
@@ -14,6 +23,14 @@ struct DebtFormView: View {
     @State private var rateText: String
     @State private var paymentText: String
     @State private var dueDay: Int
+
+    // Solo tarjeta nueva: saldo revolvente y/o meses sin intereses.
+    @State private var balanceType: CardBalanceType = .revolving
+    @State private var planConcept = ""
+    @State private var planAmountText = ""
+    @State private var planMonthlyText = ""
+    @State private var planMonths = 12
+    @State private var planStart = Date()
 
     init(kind: DebtKind, debt: Debt? = nil) {
         self.kind = kind
@@ -29,32 +46,107 @@ struct DebtFormView: View {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    var body: some View {
-        FormSheet(canSave: !trimmedName.isEmpty, onSave: save) {
-            Section {
-                TextRow(title: t.name, text: $name, prompt: t.namePlaceholder(kind))
+    private var isNewCard: Bool { debt == nil && kind == .creditCard }
+    private var includesPlan: Bool { isNewCard && balanceType != .revolving }
 
-                switch kind {
-                case .creditCard:
-                    DecimalField(title: t.currentBalance, text: $balanceText, prefix: t.currencySymbol)
-                    DecimalField(title: t.interestRateApprox, text: $rateText, suffix: "%")
-                    Picker(t.paymentDueDay, selection: $dueDay) {
-                        ForEach(1...31, id: \.self) { day in
-                            Text(String(day)).tag(day)
-                        }
-                    }
-                case .mortgage, .studentLoan:
-                    DecimalField(title: t.remainingBalance, text: $balanceText, prefix: t.currencySymbol)
-                    DecimalField(title: t.interestRateApprox, text: $rateText, suffix: "%")
-                    DecimalField(title: t.monthlyPayment, text: $paymentText, prefix: t.currencySymbol)
+    private var planMonthly: Double { parseDecimal(planMonthlyText) }
+    private var planPending: Double {
+        let remaining = planMonths - LoanMath.paymentsMade(start: planStart, months: planMonths)
+        return LoanMath.remainingBalance(payment: planMonthly, annualRate: 0, remainingMonths: remaining)
+    }
+
+    private var canSave: Bool {
+        !trimmedName.isEmpty && (!includesPlan || planMonthly > 0)
+    }
+
+    var body: some View {
+        FormSheet(canSave: canSave, onSave: save) {
+            switch kind {
+            case .creditCard:
+                cardSections
+            case .mortgage, .studentLoan:
+                loanSection
+            }
+        }
+    }
+
+    private var header: some View {
+        Label(t.kindName(kind), systemImage: kind.systemImage)
+            .font(.headline)
+    }
+
+    @ViewBuilder
+    private var cardSections: some View {
+        Section {
+            TextRow(title: t.name, text: $name, prompt: t.namePlaceholder(kind))
+            if !isNewCard {
+                DecimalField(title: t.revolvingSection, text: $balanceText, prefix: t.currencySymbol)
+            }
+            DecimalField(title: t.interestRateApprox, text: $rateText, suffix: "%")
+            Picker(t.paymentDueDay, selection: $dueDay) {
+                ForEach(1...31, id: \.self) { day in
+                    Text(String(day)).tag(day)
                 }
-            } header: {
-                Label(t.kindName(kind), systemImage: kind.systemImage)
-                    .font(.headline)
-            } footer: {
-                Text(kind == .creditCard ? t.cardFormFooter : t.approxNote)
+            }
+        } header: {
+            header
+        } footer: {
+            if !isNewCard {
+                Text(t.cardFormFooter)
                     .foregroundStyle(.secondary)
             }
+        }
+
+        if isNewCard {
+            Section {
+                Picker(t.balanceTypeQuestion, selection: $balanceType) {
+                    ForEach(CardBalanceType.allCases) { type in
+                        Text(t.balanceTypeName(type)).tag(type)
+                    }
+                }
+                .pickerStyle(.radioGroup)
+
+                if balanceType != .installments {
+                    DecimalField(title: t.revolvingSection, text: $balanceText, prefix: t.currencySymbol)
+                }
+            } header: {
+                Text(t.balanceSection)
+            } footer: {
+                Text(t.balanceTypeFooter)
+                    .foregroundStyle(.secondary)
+            }
+
+            if balanceType != .revolving {
+                Section {
+                    TextRow(title: t.concept, text: $planConcept, prompt: t.conceptPlaceholder)
+                    DecimalField(title: t.totalAmount, text: $planAmountText, prefix: t.currencySymbol)
+                    Stepper(value: $planMonths, in: 1...120) {
+                        Text(t.monthsCount(planMonths))
+                    }
+                    DecimalField(title: t.monthlyPayment, text: $planMonthlyText, prefix: t.currencySymbol)
+                    DatePicker(t.startDate, selection: $planStart, displayedComponents: .date)
+                    LabeledContent(t.remainingBalance, value: t.money(planPending))
+                } header: {
+                    Text(t.balanceTypeName(.installments))
+                } footer: {
+                    Text(t.addMorePlansFooter)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    private var loanSection: some View {
+        Section {
+            TextRow(title: t.name, text: $name, prompt: t.namePlaceholder(kind))
+            DecimalField(title: t.remainingBalance, text: $balanceText, prefix: t.currencySymbol)
+            DecimalField(title: t.interestRateApprox, text: $rateText, suffix: "%")
+            DecimalField(title: t.monthlyPayment, text: $paymentText, prefix: t.currencySymbol)
+        } header: {
+            header
+        } footer: {
+            Text(t.approxNote)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -68,11 +160,27 @@ struct DebtFormView: View {
         }
 
         target.name = trimmedName
-        target.balance = parseDecimal(balanceText)
         target.interestRate = parseDecimal(rateText)
-        if kind == .creditCard {
+
+        switch kind {
+        case .creditCard:
             target.paymentDueDay = dueDay
-        } else {
+            target.balance = (isNewCard && balanceType == .installments) ? 0 : parseDecimal(balanceText)
+            if includesPlan {
+                let plan = InstallmentPlan(
+                    concept: planConcept.trimmingCharacters(in: .whitespacesAndNewlines),
+                    totalAmount: parseDecimal(planAmountText),
+                    months: planMonths,
+                    monthlyPayment: planMonthly,
+                    annualRate: 0,
+                    startDate: planStart
+                )
+                context.insert(plan)
+                if target.plans == nil { target.plans = [] }
+                target.plans?.append(plan)
+            }
+        case .mortgage, .studentLoan:
+            target.balance = parseDecimal(balanceText)
             target.monthlyPayment = parseDecimal(paymentText)
         }
         try? context.save()

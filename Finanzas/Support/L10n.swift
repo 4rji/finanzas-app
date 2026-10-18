@@ -97,8 +97,32 @@ struct L10n {
     var interestRateApprox: String { pick("Annual interest rate (approx.)", "Tasa de interés anual (aprox.)") }
     var monthlyInterestApprox: String { pick("Approx. monthly interest", "Interés mensual aprox.") }
     var cardFormFooter: String {
-        pick("Add installment plans from the card's detail screen.",
-             "Las compras a meses se agregan desde el detalle de la tarjeta.")
+        pick("Revolving part only. Installment plans are managed from the card's detail.",
+             "Solo la parte revolvente. Las compras a meses se manejan en el detalle de la tarjeta.")
+    }
+
+    var balanceSection: String { pick("Balance", "Saldo") }
+    var balanceTypeQuestion: String { pick("How is the balance?", "¿Cómo está el saldo?") }
+    var balanceTypeFooter: String {
+        pick("Only the revolving balance accrues interest. Interest-free installments are tracked separately so they aren't counted twice.",
+             "Solo el saldo revolvente genera intereses. Los meses sin intereses se registran aparte para no sumarlos dos veces.")
+    }
+    var addMorePlansFooter: String {
+        pick("You can add more installment plans later from the card's detail.",
+             "Puedes agregar más compras a meses después desde el detalle de la tarjeta.")
+    }
+    var includedInBalance: String { pick("Already included in revolving balance", "Ya está incluida en el saldo revolvente") }
+    var includedInBalanceFooter: String {
+        pick("Turn on if the revolving balance you entered already includes this purchase. It will be subtracted from there so it isn't counted twice.",
+             "Actívalo si el saldo revolvente que capturaste ya incluye esta compra; se restará de ahí para no contarla dos veces.")
+    }
+
+    func balanceTypeName(_ type: CardBalanceType) -> String {
+        switch type {
+        case .revolving: return pick("Revolving", "Revolvente")
+        case .installments: return pick("Interest-free installments", "Meses sin intereses")
+        case .both: return pick("Both", "Ambos")
+        }
     }
 
     var installmentsSection: String { pick("Installment plans", "Compras a meses") }

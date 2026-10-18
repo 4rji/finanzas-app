@@ -82,7 +82,7 @@ private struct InstallmentRow: View {
                 Text(t.money(plan.remainingBalance()))
                     .monospacedDigit()
             }
-            Text(t.perMonth(plan.monthlyPayment) + " · " + (plan.isInterestFree ? t.interestFree : t.percent(plan.annualRate)))
+            Text(details)
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Text(remaining > 0
@@ -93,5 +93,16 @@ private struct InstallmentRow: View {
         }
         .padding(.vertical, 2)
         .contentShape(Rectangle())
+    }
+
+    private var details: String {
+        var parts = [
+            t.perMonth(plan.monthlyPayment),
+            plan.isInterestFree ? t.interestFree : t.percent(plan.annualRate),
+        ]
+        if plan.totalAmount > 0 {
+            parts.append(t.totalAmount + " " + t.money(plan.totalAmount))
+        }
+        return parts.joined(separator: " · ")
     }
 }

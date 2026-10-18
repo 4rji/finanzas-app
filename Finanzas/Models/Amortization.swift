@@ -1,20 +1,18 @@
 import Foundation
 
 enum LoanMath {
-    /// Pago mensual fijo para pagar `principal` en `months` meses.
-    static func payment(principal: Double, annualRate: Double, months: Int) -> Double {
-        guard months > 0 else { return principal }
-        let r = annualRate / 100 / 12
-        guard r > 0 else { return principal / Double(months) }
-        return principal * r / (1 - pow(1 + r, -Double(months)))
-    }
-
     /// Saldo pendiente cuando faltan `remainingMonths` pagos de `payment`.
     static func remainingBalance(payment: Double, annualRate: Double, remainingMonths: Int) -> Double {
         guard remainingMonths > 0 else { return 0 }
         let r = annualRate / 100 / 12
         guard r > 0 else { return payment * Double(remainingMonths) }
         return payment * (1 - pow(1 + r, -Double(remainingMonths))) / r
+    }
+
+    /// Mensualidades ya pagadas desde `start` (meses completos transcurridos, máximo `months`).
+    static func paymentsMade(start: Date, months: Int, asOf date: Date = Date()) -> Int {
+        let elapsed = Calendar.current.dateComponents([.month], from: start, to: date).month ?? 0
+        return min(max(elapsed, 0), months)
     }
 
     static func endDate(start: Date, months: Int) -> Date {

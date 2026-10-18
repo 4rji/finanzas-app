@@ -2,36 +2,34 @@ import Foundation
 import SwiftData
 
 /// Compra a meses dentro de una tarjeta. `annualRate` = 0 significa meses sin intereses.
+/// La mensualidad la captura el usuario (la del estado de cuenta), no se calcula.
 @Model
 final class InstallmentPlan {
     var concept: String = ""
     var totalAmount: Double = 0
     var months: Int = 12
+    var monthlyPayment: Double = 0
     var annualRate: Double = 0
     var startDate: Date = Date()
     var debt: Debt?
 
-    init(concept: String, totalAmount: Double, months: Int, annualRate: Double, startDate: Date) {
+    init(concept: String, totalAmount: Double, months: Int, monthlyPayment: Double, annualRate: Double, startDate: Date) {
         self.concept = concept
         self.totalAmount = totalAmount
         self.months = months
+        self.monthlyPayment = monthlyPayment
         self.annualRate = annualRate
         self.startDate = startDate
     }
 
     var isInterestFree: Bool { annualRate <= 0 }
 
-    var monthlyPayment: Double {
-        LoanMath.payment(principal: totalAmount, annualRate: annualRate, months: months)
-    }
-
     var endDate: Date {
         LoanMath.endDate(start: startDate, months: months)
     }
 
     func paymentsMade(asOf date: Date = Date()) -> Int {
-        let elapsed = Calendar.current.dateComponents([.month], from: startDate, to: date).month ?? 0
-        return min(max(elapsed, 0), months)
+        LoanMath.paymentsMade(start: startDate, months: months, asOf: date)
     }
 
     func remainingMonths(asOf date: Date = Date()) -> Int {
