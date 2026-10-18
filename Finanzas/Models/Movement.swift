@@ -5,6 +5,8 @@ import SwiftData
 /// - Depósito: lo agrega solo un ingreso recurrente (`income`); `payDate` = fecha de pago que cubre.
 /// - Ingreso extra: monto de una sola vez.
 /// - Pago: sale de la cuenta hacia una deuda (`debt`); `appliedToDebt` = cuánto bajó su saldo.
+///   Si es automático, `recurringPayment` y `payDate` como en el depósito.
+/// - Transferencia: sale de `account` y entra a `toAccount`. Si es recurrente, `income` y `payDate`.
 /// `amount` siempre es positivo; el tipo dice si entra o sale.
 @Model
 final class Movement {
@@ -18,7 +20,9 @@ final class Movement {
     var payDate: Date = Date()
     var appliedToDebt: Double = 0
     var account: Account?
+    var toAccount: Account?
     var income: RecurringIncome?
+    var recurringPayment: RecurringPayment?
     var debt: Debt?
 
     init(kind: MovementKind) {
@@ -32,9 +36,10 @@ final class Movement {
         set { kindRaw = newValue.rawValue }
     }
 
-    /// Positivo si entra dinero a la cuenta, negativo si sale.
+    /// Positivo si entra dinero a `account`, negativo si sale. En una transferencia sale de
+    /// `account`; a `toAccount` le entra `amount` (ver `Account.balance`).
     var signedAmount: Double {
-        kind == .payment ? -amount : amount
+        kind == .payment || kind == .transfer ? -amount : amount
     }
 
     /// Borra el movimiento. Si era un pago, le regresa a la deuda lo que se le había restado.

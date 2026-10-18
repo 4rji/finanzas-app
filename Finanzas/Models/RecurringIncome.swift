@@ -2,7 +2,8 @@ import Foundation
 import SwiftData
 
 /// Ingreso que llega cada cierto tiempo, como el sueldo. En cada fecha de pago se suma solo a su
-/// cuenta como un depósito (ver `RecurringDeposits`).
+/// cuenta como un depósito (ver `RecurringDeposits`). Si tiene `fromAccount` es una transferencia
+/// recurrente: en cada fecha sale de esa cuenta y entra a `account`.
 @Model
 final class RecurringIncome {
     var name: String = ""
@@ -14,6 +15,7 @@ final class RecurringIncome {
     /// Número del siguiente pago por sumar, contando desde `startDate`.
     var postedCount: Int = 0
     var account: Account?
+    var fromAccount: Account?
 
     @Relationship(deleteRule: .nullify, inverse: \Movement.income)
     var deposits: [Movement]? = []
@@ -37,6 +39,11 @@ final class RecurringIncome {
         amount * frequency.paymentsPerMonth
     }
 
+    /// Entra o sale de una inversión; se muestra en Inversiones en lugar de Cuentas.
+    var isInvestment: Bool {
+        account?.kind == .investment || fromAccount?.kind == .investment
+    }
+
     /// Reinicia el calendario desde `start`. Solo se suman los pagos de `today` en adelante:
     /// los anteriores ya deberían estar en el saldo de la cuenta.
     func reschedule(start: Date, frequency: PayFrequency, asOf today: Date = Date()) {
@@ -47,34 +54,74 @@ final class RecurringIncome {
 }
 
 extension Sequence where Element == RecurringIncome {
-    /// Suma mensual aproximada.
+    /// Suma mensual aproximada de lo que llega de fuera (las transferencias entre cuentas no cuentan).
     var monthlyIncome: Double {
-        reduce(0) { $0 + $1.monthlyAmount }
+        filter { $0.fromAccount == nil }.reduce(0) { $0 + $1.monthlyAmount }
+    }
+
+    /// Suma mensual aproximada de lo que entra a inversiones.
+    var monthlyContributions: Double {
+        filter { $0.account?.kind == .investment }.reduce(0) { $0 + $1.monthlyAmount }
     }
 }
 
-/// Suma los ingresos recurrentes a su cuenta conforme llegan sus fechas de pago.
+/// Suma los ingresos recurrentes a su cuenta y aplica los pagos automáticos conforme llegan sus fechas.
 enum RecurringDeposits {
-    /// Agrega los depósitos cuya fecha ya llegó y quita duplicados. Se puede llamar las veces que
-    /// sea: solo agrega lo que falta.
+    /// Agrega los depósitos y pagos cuya fecha ya llegó y quita duplicados. Se puede llamar las
+    /// veces que sea: solo agrega lo que falta.
     static func update(in context: ModelContext, now: Date = Date()) {
         let incomes = (try? context.fetch(FetchDescriptor<RecurringIncome>())) ?? []
+        let autoPayments = (try? context.fetch(FetchDescriptor<RecurringPayment>())) ?? []
         var changed = false
 
         for income in incomes {
-            guard let account = income.account, income.amount > 0 else { continue }
+            guard let account = income.account, income.amount > 0, income.fromAccount != account else { continue }
             var posted = 0
             // Tope por si la primera fecha quedó muy atrás.
             while income.nextPayDate <= now && posted < 1000 {
-                let deposit = Movement(kind: .deposit)
+                // Si sale de otra cuenta es una transferencia; si no, un depósito que llega de fuera.
+                let deposit = Movement(kind: income.fromAccount == nil ? .deposit : .transfer)
                 context.insert(deposit)
                 deposit.amount = income.amount
                 deposit.date = income.nextPayDate
                 deposit.payDate = income.nextPayDate
                 deposit.note = income.name
-                deposit.account = account
+                if let source = income.fromAccount {
+                    deposit.account = source
+                    deposit.toAccount = account
+                } else {
+                    deposit.account = account
+                }
                 deposit.income = income
                 income.postedCount += 1
+                posted += 1
+            }
+            changed = changed || posted > 0
+        }
+
+        for plan in autoPayments {
+            guard let account = plan.account, let debt = plan.debt, plan.amount > 0 else { continue }
+            var posted = 0
+            while plan.nextPayDate <= now && posted < 1000 {
+                // Si la deuda ya está liquidada, la fecha se salta sin cobrar.
+                let amount = min(plan.amount, debt.payoffAmount)
+                if amount > 0.005 {
+                    let payment = Movement(kind: .payment)
+                    context.insert(payment)
+                    payment.amount = amount
+                    payment.date = plan.nextPayDate
+                    payment.payDate = plan.nextPayDate
+                    payment.note = debt.name
+                    payment.account = account
+                    payment.debt = debt
+                    payment.recurringPayment = plan
+                    payment.appliedToDebt = debt.balanceReduction(
+                        forPayment: amount,
+                        includesInstallments: plan.includesInstallments
+                    )
+                    debt.balance -= payment.appliedToDebt
+                }
+                plan.postedCount += 1
                 posted += 1
             }
             changed = changed || posted > 0
@@ -85,24 +132,26 @@ enum RecurringDeposits {
         }
     }
 
-    /// Si dos dispositivos sumaron el mismo depósito antes de sincronizarse, deja solo uno.
-    /// Todos eligen el mismo (el de `uuid` menor), así nunca se borran los dos.
+    /// Si dos dispositivos sumaron el mismo depósito o pago antes de sincronizarse, deja solo uno.
+    /// Todos eligen el mismo (el de `uuid` menor), así nunca se borran los dos. Al pago duplicado no
+    /// se le regresa el monto a la deuda: los dos dispositivos guardaron el mismo saldo ya rebajado.
     private static func removeDuplicates(in context: ModelContext) -> Bool {
         let movements = (try? context.fetch(FetchDescriptor<Movement>())) ?? []
-        let deposits = movements
-            .filter { $0.kind == .deposit && $0.income != nil }
+        let scheduled = movements
+            .filter { $0.income != nil || $0.recurringPayment != nil }
             .sorted { $0.uuid < $1.uuid }
 
         var seen = Set<DepositKey>()
         var removed = false
-        for deposit in deposits {
-            guard let income = deposit.income else { continue }
+        for movement in scheduled {
+            guard let source = movement.income?.persistentModelID ?? movement.recurringPayment?.persistentModelID
+            else { continue }
             let key = DepositKey(
-                income: income.persistentModelID,
-                payDate: Calendar.current.startOfDay(for: deposit.payDate)
+                source: source,
+                payDate: Calendar.current.startOfDay(for: movement.payDate)
             )
             if !seen.insert(key).inserted {
-                context.delete(deposit)
+                context.delete(movement)
                 removed = true
             }
         }
@@ -110,7 +159,7 @@ enum RecurringDeposits {
     }
 
     private struct DepositKey: Hashable {
-        let income: PersistentIdentifier
+        let source: PersistentIdentifier
         let payDate: Date
     }
 }

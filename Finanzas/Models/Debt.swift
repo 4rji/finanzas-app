@@ -4,8 +4,10 @@ import SwiftData
 /// Una deuda. Los campos se reutilizan según el tipo:
 /// - Tarjeta: `balance` = deuda corriente (revolvente), `interestRate` = tasa revolvente,
 ///   `paymentDueDay` = día límite de pago, `plans` = compras a meses.
-/// - Hipoteca / préstamo estudiantil: `balance` = saldo restante, `interestRate` = tasa anual,
-///   `monthlyPayment` = pago mensual.
+///   `monthlyPayment` = pago mensual que se hace (opcional, para estimar cuándo se liquida).
+/// - Hipoteca / préstamo de auto / estudiantil: `balance` = saldo restante, `interestRate` = tasa
+///   anual, `monthlyPayment` = pago mensual, `paymentDueDay` = día del pago automático.
+///   Auto: `insuranceAmount` = pago del seguro, solo como nota (no cambia el pago ni el total).
 @Model
 final class Debt {
     var name: String = ""
@@ -16,6 +18,7 @@ final class Debt {
     var monthlyPayment: Double = 0
     var paymentDueDay: Int = 1
     var creditLimit: Double = 0
+    var insuranceAmount: Double = 0
 
     @Relationship(deleteRule: .cascade, inverse: \InstallmentPlan.debt)
     var plans: [InstallmentPlan]? = []
@@ -23,6 +26,9 @@ final class Debt {
     /// Pagos hechos desde una cuenta. Si se borra la deuda, los pagos se quedan en el historial.
     @Relationship(deleteRule: .nullify, inverse: \Movement.debt)
     var payments: [Movement]? = []
+
+    @Relationship(deleteRule: .cascade, inverse: \RecurringPayment.debt)
+    var autoPayments: [RecurringPayment]? = []
 
     init(name: String, kind: DebtKind) {
         self.name = name
@@ -68,20 +74,26 @@ final class Debt {
 
     /// Próxima fecha límite de pago (hoy o después).
     var nextDueDate: Date {
+        Debt.nextDate(onDay: paymentDueDay, onOrAfter: Date())
+    }
+
+    /// Próxima fecha que cae en el día `day` del mes, en `date` o después. Si el mes es más corto,
+    /// el último día del mes.
+    static func nextDate(onDay day: Int, onOrAfter date: Date) -> Date {
         let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
+        let start = calendar.startOfDay(for: date)
 
         func dueDate(inMonthOf date: Date) -> Date {
             let components = calendar.dateComponents([.year, .month], from: date)
             let firstOfMonth = calendar.date(from: components) ?? date
             let daysInMonth = calendar.range(of: .day, in: .month, for: firstOfMonth)?.count ?? 28
-            let day = min(max(paymentDueDay, 1), daysInMonth)
-            return calendar.date(byAdding: .day, value: day - 1, to: firstOfMonth) ?? firstOfMonth
+            let target = min(max(day, 1), daysInMonth)
+            return calendar.date(byAdding: .day, value: target - 1, to: firstOfMonth) ?? firstOfMonth
         }
 
-        let thisMonth = dueDate(inMonthOf: today)
-        if thisMonth >= today { return thisMonth }
-        let nextMonth = calendar.date(byAdding: .month, value: 1, to: today) ?? today
+        let thisMonth = dueDate(inMonthOf: start)
+        if thisMonth >= start { return thisMonth }
+        let nextMonth = calendar.date(byAdding: .month, value: 1, to: start) ?? start
         return dueDate(inMonthOf: nextMonth)
     }
 
@@ -99,6 +111,16 @@ final class Debt {
 
     // MARK: Pagos
 
+    /// Pago automático mensual desde una cuenta, si tiene.
+    var autoPayment: RecurringPayment? {
+        autoPayments?.first
+    }
+
+    /// Lo más que tiene sentido pagar este mes: lo que se debe, más el interés del mes en préstamos.
+    var payoffAmount: Double {
+        kind == .creditCard ? totalOwed : balance + amortization.interestThisMonth
+    }
+
     /// Cuánto baja `balance` con un pago de `amount`:
     /// - Tarjeta: se resta del revolvente. Si `includesInstallments`, el pago primero cubre las
     ///   mensualidades a meses, que ya bajan solas cada mes y no deben restarse dos veces.
@@ -108,7 +130,7 @@ final class Debt {
         switch kind {
         case .creditCard:
             reduction = includesInstallments ? amount - installmentsMonthly : amount
-        case .mortgage, .studentLoan:
+        case .mortgage, .autoLoan, .studentLoan:
             reduction = amount - amortization.interestThisMonth
         }
         return min(max(reduction, 0), balance)

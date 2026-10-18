@@ -3,6 +3,7 @@ import Foundation
 enum DebtKind: String, CaseIterable, Identifiable, Codable {
     case creditCard
     case mortgage
+    case autoLoan
     case studentLoan
 
     var id: String { rawValue }
@@ -11,6 +12,7 @@ enum DebtKind: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .creditCard: return "creditcard"
         case .mortgage: return "house"
+        case .autoLoan: return "car"
         case .studentLoan: return "graduationcap"
         }
     }
