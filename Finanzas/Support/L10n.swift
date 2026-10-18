@@ -279,6 +279,64 @@ struct L10n {
     var principal: String { pick("Principal", "Capital") }
     var balance: String { pick("Balance", "Saldo") }
 
+    // MARK: Ingresos
+
+    var income: String { pick("Income", "Ingresos") }
+    var noIncomeTitle: String { pick("No income yet", "Aún no hay ingresos") }
+    var noIncomeMessage: String {
+        pick("Use the + button to add your salary or an extra income.",
+             "Usa el botón + para agregar tu sueldo o un ingreso extra.")
+    }
+    var monthlyIncome: String { pick("Monthly income (approx.)", "Ingreso mensual (aprox.)") }
+    var perMonthApprox: String { pick("Per month, approx.", "Al mes, aprox.") }
+    var extrasThisMonth: String { pick("Extras this month", "Extras este mes") }
+    var amount: String { pick("Amount", "Monto") }
+    var amountPerPayment: String { pick("Amount per deposit", "Monto por depósito") }
+    var howOften: String { pick("How often", "Cada cuánto") }
+    var dateReceived: String { pick("Date received", "Fecha en que lo recibiste") }
+    var recurringIncomeFooter: String {
+        pick("What you get each time. Extra income is added separately and doesn't change this amount.",
+             "Lo que te depositan cada vez. Los ingresos extra se agregan aparte y no cambian este monto.")
+    }
+    var extraIncomeFooter: String {
+        pick("One-time income, like a bonus or a sale. It doesn't change your recurring income.",
+             "Ingreso de una sola vez, como un bono o una venta. No cambia tu ingreso recurrente.")
+    }
+
+    func incomeKindName(_ kind: IncomeKind) -> String {
+        switch kind {
+        case .recurring: return pick("Recurring income", "Ingreso recurrente")
+        case .extra: return pick("Extra income", "Ingreso extra")
+        }
+    }
+
+    func incomeKindPlural(_ kind: IncomeKind) -> String {
+        switch kind {
+        case .recurring: return pick("Recurring", "Recurrentes")
+        case .extra: return "Extras"
+        }
+    }
+
+    func incomeNamePlaceholder(_ kind: IncomeKind) -> String {
+        switch kind {
+        case .recurring: return pick("e.g. Salary", "ej. Sueldo")
+        case .extra: return pick("e.g. Bonus", "ej. Bono")
+        }
+    }
+
+    func frequencyName(_ frequency: PayFrequency) -> String {
+        switch frequency {
+        case .weekly: return pick("Every week", "Cada semana")
+        case .biweekly: return pick("Every 2 weeks", "Cada dos semanas")
+        case .semimonthly: return pick("Twice a month", "Dos veces al mes")
+        case .monthly: return pick("Every month", "Cada mes")
+        }
+    }
+
+    func approxPerMonth(_ value: Double) -> String {
+        "≈ " + perMonth(value)
+    }
+
     // MARK: Calendario
 
     var dayTitle: String { pick("Day", "Día") }

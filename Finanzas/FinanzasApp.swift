@@ -8,7 +8,7 @@ struct FinanzasApp: App {
     init() {
         do {
             container = try ModelContainer(
-                for: Debt.self, InstallmentPlan.self,
+                for: Debt.self, InstallmentPlan.self, Income.self,
                 configurations: ModelConfiguration("Finanzas")
             )
         } catch {

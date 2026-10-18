@@ -4,6 +4,7 @@ import SwiftData
 struct DashboardView: View {
     @Environment(\.l10n) private var t
     @Query private var debts: [Debt]
+    @Query private var incomes: [Income]
 
     private var totalDebt: Double {
         debts.reduce(0) { $0 + $1.totalOwed }
@@ -13,12 +14,25 @@ struct DashboardView: View {
         ScrollView {
             VStack(spacing: 16) {
                 NavigationLink {
+                    IncomeListView()
+                } label: {
+                    SummaryCard(
+                        title: t.income,
+                        systemImage: "banknote",
+                        amount: incomes.monthlyIncome,
+                        subtitle: incomeSubtitle
+                    )
+                }
+                .buttonStyle(.plain)
+
+                NavigationLink {
                     DebtsListView()
                 } label: {
-                    DebtsSummaryCard(
-                        total: totalDebt,
-                        count: debts.count,
-                        creditUsage: debts.creditUsage.map { $0.used / $0.limit }
+                    SummaryCard(
+                        title: t.debts,
+                        systemImage: "creditcard",
+                        amount: totalDebt,
+                        subtitle: debtsSubtitle
                     )
                 }
                 .buttonStyle(.plain)
@@ -37,14 +51,26 @@ struct DashboardView: View {
             }
         }
     }
+
+    private var incomeSubtitle: String {
+        let extras = incomes.extrasTotal()
+        guard extras > 0 else { return t.perMonthApprox }
+        return t.perMonthApprox + " · " + t.extrasThisMonth + " " + t.money(extras)
+    }
+
+    private var debtsSubtitle: String {
+        guard let usage = debts.creditUsage else { return t.debtCount(debts.count) }
+        return t.debtCount(debts.count) + " · " + t.creditUsedShort(usage.used / usage.limit)
+    }
 }
 
-private struct DebtsSummaryCard: View {
+private struct SummaryCard: View {
     @Environment(\.l10n) private var t
     @Environment(\.textScale) private var scale
-    let total: Double
-    let count: Int
-    let creditUsage: Double?
+    let title: String
+    let systemImage: String
+    let amount: Double
+    let subtitle: String
 
     @State private var hovering = false
 
@@ -53,10 +79,10 @@ private struct DebtsSummaryCard: View {
 
         HStack(spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
-                Label(t.debts, systemImage: "creditcard")
+                Label(title, systemImage: systemImage)
                     .appFont(.headline)
                     .foregroundStyle(.secondary)
-                Text(t.money(total))
+                Text(t.money(amount))
                     .font(.system(size: 36 * scale, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .lineLimit(1)
@@ -74,10 +100,5 @@ private struct DebtsSummaryCard: View {
         .overlay(shape.strokeBorder(Color.secondary.opacity(hovering ? 0.4 : 0.2), lineWidth: hovering ? 1 : 0.5))
         .contentShape(shape)
         .onHover { hovering = $0 }
-    }
-
-    private var subtitle: String {
-        guard let creditUsage else { return t.debtCount(count) }
-        return t.debtCount(count) + " · " + t.creditUsedShort(creditUsage)
     }
 }
