@@ -116,7 +116,7 @@ struct L10n {
     func balanceTypeName(_ type: CardBalanceType) -> String {
         switch type {
         case .revolving: return pick("Revolving", "Revolvente")
-        case .installments: return pick("Installments or balance transfer", "A meses o transferencia")
+        case .installments: return pick("Balance transfer or installments", "Transferencia o a meses")
         case .both: return pick("Both", "Ambos")
         }
     }
@@ -125,7 +125,7 @@ struct L10n {
     var noInstallments: String { pick("No installment plans or transfers", "Sin compras a meses ni transferencias") }
     var addInstallment: String { pick("Add installment plan or transfer", "Agregar compra a meses o transferencia") }
     var planType: String { pick("Type", "Tipo") }
-    var concept: String { pick("Description", "Concepto") }
+    var descriptionOptional: String { pick("Description (optional)", "Descripción (opcional)") }
     var conceptPlaceholder: String { pick("e.g. Laptop", "ej. Laptop") }
     var transferPlaceholder: String { pick("e.g. From Visa", "ej. Desde Visa") }
 

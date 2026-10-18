@@ -2,10 +2,10 @@ import Foundation
 
 /// Tipo de saldo especial dentro de una tarjeta.
 enum PlanKind: String, CaseIterable, Identifiable {
-    /// Compra a meses: mensualidad fija durante N meses.
-    case installments
     /// Transferencia de saldo: saldo con tasa promocional hasta una fecha de vencimiento.
     case balanceTransfer
+    /// Compra a meses: mensualidad fija durante N meses.
+    case installments
 
     var id: String { rawValue }
 

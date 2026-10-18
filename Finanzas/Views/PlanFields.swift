@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Datos capturados de una compra a meses o transferencia de saldo, antes de guardarlos.
 struct PlanDraft {
-    var kind: PlanKind = .installments
+    var kind: PlanKind = .balanceTransfer
     var concept = ""
     var amountText = ""
     var months = 12
@@ -109,7 +109,7 @@ struct PlanFields: View {
 
     @ViewBuilder
     private var installmentFields: some View {
-        TextRow(title: t.concept, text: $draft.concept, prompt: t.conceptPlaceholder)
+        TextRow(title: t.descriptionOptional, text: $draft.concept, prompt: t.conceptPlaceholder)
         DecimalField(title: t.totalAmount, text: $draft.amountText, prefix: t.currencySymbol)
         Stepper(value: $draft.months, in: 1...120) {
             Text(t.monthsCount(draft.months))
@@ -121,7 +121,7 @@ struct PlanFields: View {
 
     @ViewBuilder
     private var transferFields: some View {
-        TextRow(title: t.concept, text: $draft.concept, prompt: t.transferPlaceholder)
+        TextRow(title: t.descriptionOptional, text: $draft.concept, prompt: t.transferPlaceholder)
         DecimalField(title: t.transferBalance, text: $draft.amountText, prefix: t.currencySymbol)
         DecimalField(title: t.promoRate, text: $draft.rateText, suffix: "%")
         DatePicker(t.promoEndDate, selection: $draft.promoEndDate, displayedComponents: .date)

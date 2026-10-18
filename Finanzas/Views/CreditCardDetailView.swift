@@ -73,9 +73,14 @@ private struct InstallmentRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            HStack {
-                Label(plan.concept.isEmpty ? t.planKindName(plan.kind) : plan.concept, systemImage: plan.kind.systemImage)
+            HStack(spacing: 6) {
+                Label(t.planKindName(plan.kind), systemImage: plan.kind.systemImage)
                     .font(.body.weight(.medium))
+                if !plan.concept.isEmpty {
+                    Text("· " + plan.concept)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
                 Spacer()
                 Text(t.money(plan.remainingBalance()))
                     .monospacedDigit()
