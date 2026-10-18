@@ -49,7 +49,7 @@ struct MovementFormView: View {
                 AccountPicker(accounts: accounts, selection: $account)
             } header: {
                 Label(t.movementKindName(kind), systemImage: kind.systemImage)
-                    .appFont(.headline)
+                    .sectionTitle()
             } footer: {
                 Text(kind == .extra ? t.extraIncomeFooter : t.depositFooter)
                     .appFont(.subheadline)

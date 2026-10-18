@@ -57,12 +57,12 @@ private struct AppFontModifier: ViewModifier {
     let weight: Font.Weight?
 
     func body(content: Content) -> some View {
-        content.font(.system(size: style.baseSize * scale, weight: weight ?? style.weight))
+        content.font(.system(size: style.baseSize * scale, weight: weight ?? style.weight, design: .rounded))
     }
 }
 
 extension View {
-    /// Fuente que respeta el tamaño de letra elegido en Configuración.
+    /// Fuente redondeada que respeta el tamaño de letra elegido en Configuración.
     func appFont(_ style: AppTextStyle, weight: Font.Weight? = nil) -> some View {
         modifier(AppFontModifier(style: style, weight: weight))
     }

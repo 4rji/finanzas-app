@@ -10,7 +10,7 @@ struct CreditCardDetailView: View {
     var body: some View {
         let plans = debt.installmentPlans
 
-        Form {
+        ThemedForm {
             Section {
                 LabeledContent(t.totalDebt) {
                     Text(t.money(debt.totalOwed))
@@ -31,7 +31,7 @@ struct CreditCardDetailView: View {
                 AutoPaymentLine(debt: debt)
             } header: {
                 Text(t.summary)
-                    .appFont(.headline)
+                    .sectionTitle()
             }
 
             Section {
@@ -40,7 +40,7 @@ struct CreditCardDetailView: View {
                 LabeledContent(t.monthlyInterestApprox, value: t.money(debt.revolvingMonthlyInterest))
             } header: {
                 Text(t.revolvingSection)
-                    .appFont(.headline)
+                    .sectionTitle()
             }
 
             Section {
@@ -67,7 +67,7 @@ struct CreditCardDetailView: View {
                 }
             } header: {
                 Text(t.installmentsSection)
-                    .appFont(.headline)
+                    .sectionTitle()
             } footer: {
                 if !plans.isEmpty {
                     Text(t.installmentsFooter(balance: debt.installmentsRemaining, monthly: debt.installmentsMonthly))
@@ -76,7 +76,6 @@ struct CreditCardDetailView: View {
                 }
             }
         }
-        .formStyle(.grouped)
         .sheet(isPresented: $addingPlan) {
             InstallmentFormView(debt: debt)
         }

@@ -2,3 +2,7 @@ xcuserdata/
 DerivedData/
 build/
 .DS_Store
+
+# Capturas de referencia del diseño
+screnshots/
+screenshots/

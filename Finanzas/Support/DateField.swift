@@ -95,7 +95,7 @@ private struct StepDatePicker: View {
             HStack {
                 Spacer()
                 Button(t.done, action: onDone)
-                    .buttonStyle(.borderedProminent)
+                    .prominentButton()
             }
         }
         .padding(14 * scale)

@@ -111,7 +111,7 @@ struct TransferFormView: View {
                 }
             } header: {
                 Label(t.moveMoney, systemImage: MovementKind.transfer.systemImage)
-                    .appFont(.headline)
+                    .sectionTitle()
             } footer: {
                 Text(repeats ? t.moveMoneyFooter + " " + t.moveRecurringFooter : t.moveMoneyFooter)
                     .appFont(.subheadline)
@@ -159,7 +159,7 @@ struct TransferFormView: View {
             }
 
             let reschedule = scheduleChanged
-            let defaultName = destination.kind == .investment ? t.contribution : t.transfer
+            let defaultName = destination.kind.isSavings ? t.contribution : t.transfer
             target.name = trimmedNote.isEmpty ? defaultName : trimmedNote
             target.amount = amount
             target.account = destination

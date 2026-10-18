@@ -27,10 +27,9 @@ struct FormSheet<Content: View>: View {
     var body: some View {
         #if os(macOS)
         VStack(spacing: 0) {
-            Form {
+            ThemedForm {
                 content
             }
-            .formStyle(.grouped)
 
             Divider()
 
@@ -49,14 +48,16 @@ struct FormSheet<Content: View>: View {
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)
+                .prominentButton()
                 .disabled(!canSave)
             }
             .padding()
         }
         .frame(minWidth: 460 * scale, minHeight: 420 * scale)
+        .background(AppBackground())
         #else
         NavigationStack {
-            Form {
+            ThemedForm {
                 content
 
                 if let onDelete {
@@ -68,6 +69,7 @@ struct FormSheet<Content: View>: View {
                     }
                 }
             }
+            .screenBackground()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(t.cancel) { dismiss() }

@@ -17,7 +17,7 @@ struct HistoryView: View {
                 description: Text(t.noMovementsMessage)
             )
         } else {
-            List {
+            ThemedList {
                 ForEach(months, id: \.start) { month in
                     Section {
                         ForEach(month.items) { movement in
@@ -37,7 +37,7 @@ struct HistoryView: View {
                         }
                     } header: {
                         Text(t.monthYearLong(month.start))
-                            .appFont(.headline)
+                            .sectionTitle()
                     }
                 }
             }
@@ -64,19 +64,16 @@ struct HistoryView: View {
 
 private struct MovementRow: View {
     @Environment(\.l10n) private var t
-    @Environment(\.textScale) private var scale
+    @Environment(\.colorScheme) private var scheme
     let movement: Movement
     let showsAccount: Bool
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: movement.kind.systemImage)
-                .appFont(.title3)
-                .foregroundStyle(iconColor)
-                .frame(width: 32 * scale)
+            IconTile(systemImage: movement.kind.systemImage, tint: movement.kind.tint)
             VStack(alignment: .leading, spacing: 2) {
                 Text(movement.note.isEmpty ? t.movementKindName(movement.kind) : movement.note)
-                    .appFont(.body, weight: .medium)
+                    .appFont(.body, weight: .semibold)
                 Text(subtitle)
                     .appFont(.subheadline)
                     .foregroundStyle(.secondary)
@@ -89,19 +86,11 @@ private struct MovementRow: View {
             } else {
                 Text(t.signedMoney(movement.signedAmount))
                     .monospacedDigit()
-                    .foregroundStyle(movement.signedAmount < 0 ? Color.primary : Color.green)
+                    .foregroundStyle(movement.signedAmount < 0 ? Color.primary : ThemeTint.mint.solid(scheme))
             }
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
-    }
-
-    private var iconColor: Color {
-        switch movement.kind {
-        case .payment: return .orange
-        case .transfer: return .blue
-        case .deposit, .extra: return .green
-        }
     }
 
     private var subtitle: String {

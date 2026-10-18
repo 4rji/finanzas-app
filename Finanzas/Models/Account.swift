@@ -1,14 +1,16 @@
 import Foundation
 import SwiftData
 
-/// Cuenta de cheques (o débito) o inversión. El saldo no se guarda: es el saldo inicial más los
+/// Cuenta de cheques (o débito), inversión o meta. El saldo no se guarda: es el saldo inicial más los
 /// movimientos, así los depósitos y pagos que llegan de otro dispositivo se suman sin pisarse.
+/// En una meta, `goalAmount` es lo que se quiere juntar.
 @Model
 final class Account {
     var name: String = ""
     var kindRaw: String = "checking"
     var createdAt: Date = Date()
     var startingBalance: Double = 0
+    var goalAmount: Double = 0
 
     @Relationship(deleteRule: .cascade, inverse: \Movement.account)
     var movements: [Movement]? = []
@@ -44,6 +46,12 @@ final class Account {
             + (incomingTransfers ?? []).reduce(0) { $0 + $1.amount }
     }
 
+    /// Avance de la meta, de 0 a 1. nil si no es meta o no tiene monto.
+    var goalProgress: Double? {
+        guard kind == .goal, goalAmount > 0 else { return nil }
+        return min(max(balance / goalAmount, 0), 1)
+    }
+
     /// Ajusta el saldo inicial para que el saldo actual quede en `value`, sin tocar el historial.
     func setBalance(_ value: Double) {
         startingBalance += value - balance
@@ -52,7 +60,8 @@ final class Account {
 
 extension Sequence where Element == Account {
     var checking: [Account] { filter { $0.kind == .checking } }
-    var investments: [Account] { filter { $0.kind == .investment } }
+    /// Inversiones y metas.
+    var investments: [Account] { filter { $0.kind.isSavings } }
 
     var totalBalance: Double {
         reduce(0) { $0 + $1.balance }

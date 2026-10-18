@@ -15,7 +15,9 @@ struct DebtDetailView: View {
                 LoanDetailView(debt: debt)
             }
         }
+        .screenBackground()
         .navigationTitle(debt.name)
+        .hideAmountsToolbar()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {

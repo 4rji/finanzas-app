@@ -28,7 +28,7 @@ struct AssetFormView: View {
                 DecimalField(title: t.assetValue, text: $valueText, prefix: t.currencySymbol)
             } header: {
                 Label(t.asset, systemImage: "tag")
-                    .appFont(.headline)
+                    .sectionTitle()
             }
         }
     }

@@ -19,9 +19,10 @@ struct AssetsView: View {
                     Text(t.noAssetsMessage)
                 } actions: {
                     Button(t.addAsset) { adding = true }
+                        .prominentButton()
                 }
             } else {
-                Form {
+                ThemedForm {
                     Section {
                         ForEach(assets) { asset in
                             Button {
@@ -44,10 +45,11 @@ struct AssetsView: View {
                         }
                     }
                 }
-                .formStyle(.grouped)
             }
         }
+        .screenBackground()
         .navigationTitle(t.assets)
+        .hideAmountsToolbar()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -77,8 +79,9 @@ private struct AssetRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Label(asset.name, systemImage: "tag")
-                .appFont(.body, weight: .medium)
+            IconTile(systemImage: "tag", tint: .sand)
+            Text(asset.name)
+                .appFont(.body, weight: .semibold)
             Spacer()
             Text(t.money(asset.value))
                 .appFont(.title3, weight: .semibold)

@@ -39,9 +39,9 @@ final class RecurringIncome {
         amount * frequency.paymentsPerMonth
     }
 
-    /// Entra o sale de una inversión; se muestra en Inversiones en lugar de Cuentas.
+    /// Entra o sale de una inversión o meta; se muestra en Inversiones y metas en lugar de Cuentas.
     var isInvestment: Bool {
-        account?.kind == .investment || fromAccount?.kind == .investment
+        account?.kind.isSavings == true || fromAccount?.kind.isSavings == true
     }
 
     /// Reinicia el calendario desde `start`. Solo se suman los pagos de `today` en adelante:
@@ -59,9 +59,9 @@ extension Sequence where Element == RecurringIncome {
         filter { $0.fromAccount == nil }.reduce(0) { $0 + $1.monthlyAmount }
     }
 
-    /// Suma mensual aproximada de lo que entra a inversiones.
+    /// Suma mensual aproximada de lo que entra a inversiones y metas.
     var monthlyContributions: Double {
-        filter { $0.account?.kind == .investment }.reduce(0) { $0 + $1.monthlyAmount }
+        filter { $0.account?.kind.isSavings == true }.reduce(0) { $0 + $1.monthlyAmount }
     }
 }
 

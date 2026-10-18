@@ -96,7 +96,7 @@ struct PlanFields: View {
             }
         } header: {
             Label(t.planKindName(draft.kind), systemImage: draft.kind.systemImage)
-                .appFont(.headline)
+                .sectionTitle()
         } footer: {
             Text(draft.kind == .installments ? t.planRateFooter : t.transferFooter)
                 .appFont(.subheadline)

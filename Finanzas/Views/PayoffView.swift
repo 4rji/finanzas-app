@@ -23,7 +23,7 @@ struct PayoffView: View {
             if debts.isEmpty {
                 ContentUnavailableView(t.noDebtsTitle, systemImage: "tray", description: Text(t.noDebtsMessage))
             } else {
-                List {
+                ThemedList {
                     Section {
                         LabeledContent(t.totalDebt) {
                             Text(t.money(debts.reduce(0) { $0 + $1.totalOwed }))
@@ -52,7 +52,9 @@ struct PayoffView: View {
                 }
             }
         }
+        .screenBackground()
         .navigationTitle(t.timeToPayoff)
+        .hideAmountsToolbar()
     }
 
     /// Cuando se liquida la última deuda; nil si alguna no tiene fecha estimada.
@@ -65,20 +67,17 @@ struct PayoffView: View {
 
 private struct PayoffRow: View {
     @Environment(\.l10n) private var t
-    @Environment(\.textScale) private var scale
+    @Environment(\.colorScheme) private var scheme
     let debt: Debt
     let estimate: PayoffEstimate
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: debt.kind.systemImage)
-                .appFont(.title3)
-                .foregroundStyle(.tint)
-                .frame(width: 32 * scale)
+            IconTile(systemImage: debt.kind.systemImage, tint: debt.kind.tint)
             VStack(alignment: .leading, spacing: 3) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(debt.name)
-                        .appFont(.body, weight: .medium)
+                        .appFont(.body, weight: .semibold)
                     Spacer()
                     VStack(alignment: .trailing, spacing: 1) {
                         Text(t.money(debt.totalOwed))
@@ -113,7 +112,7 @@ private struct PayoffRow: View {
         case .paidOff:
             Text(t.paidOff)
                 .appFont(.subheadline)
-                .foregroundStyle(.green)
+                .foregroundStyle(ThemeTint.mint.solid(scheme))
         case .months(let months):
             caption(t.paymentShort(estimate.payment))
             Text(t.payoffIn(months: months, date: LoanMath.endDate(start: Date(), months: months)))

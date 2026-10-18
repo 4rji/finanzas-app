@@ -6,7 +6,9 @@ struct AmortizationTableView: View {
 
     var body: some View {
         content
+            .screenBackground()
             .navigationTitle(t.amortizationTable)
+            .hideAmountsToolbar()
     }
 
     #if os(macOS)
@@ -34,6 +36,7 @@ struct AmortizationTableView: View {
                 amount(row.balance)
             }
         }
+        .scrollContentBackground(.hidden)
     }
 
     private func amount(_ value: Double) -> some View {
@@ -44,23 +47,25 @@ struct AmortizationTableView: View {
     #else
     /// En iPhone no caben las columnas: una fila por mes con el desglose abajo.
     private var content: some View {
-        List(rows) { row in
-            VStack(alignment: .leading, spacing: 3) {
-                HStack {
-                    Text("\(row.id). " + t.monthYear(row.date))
-                        .appFont(.body, weight: .medium)
-                    Spacer()
-                    Text(t.money(row.payment))
+        ThemedList {
+            ForEach(rows) { row in
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack {
+                        Text("\(row.id). " + t.monthYear(row.date))
+                            .appFont(.body, weight: .medium)
+                        Spacer()
+                        Text(t.money(row.payment))
+                            .monospacedDigit()
+                    }
+                    Text([
+                        t.interest + " " + t.money(row.interest),
+                        t.principal + " " + t.money(row.principal),
+                        t.balance + " " + t.money(row.balance),
+                    ].joined(separator: " · "))
+                        .appFont(.subheadline)
                         .monospacedDigit()
+                        .foregroundStyle(.secondary)
                 }
-                Text([
-                    t.interest + " " + t.money(row.interest),
-                    t.principal + " " + t.money(row.principal),
-                    t.balance + " " + t.money(row.balance),
-                ].joined(separator: " · "))
-                    .appFont(.subheadline)
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
             }
         }
     }

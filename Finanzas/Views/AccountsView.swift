@@ -40,7 +40,9 @@ struct AccountsView: View {
                 HistoryView(showsAccount: allAccounts.count > 1)
             }
         }
+        .screenBackground()
         .navigationTitle(t.accounts)
+        .hideAmountsToolbar()
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Picker(t.accounts, selection: $tab) {
@@ -125,9 +127,10 @@ private struct AccountSummaryView: View {
                 Text(t.noAccountsMessage)
             } actions: {
                 Button(t.addAccount) { onAdd(.account) }
+                    .prominentButton()
             }
         } else {
-            Form {
+            ThemedForm {
                 Section {
                     ForEach(accounts) { account in
                         Button {
@@ -146,7 +149,7 @@ private struct AccountSummaryView: View {
                     }
                 } header: {
                     Text(t.balance)
-                        .appFont(.headline)
+                        .sectionTitle()
                 }
 
                 Section {
@@ -173,7 +176,7 @@ private struct AccountSummaryView: View {
                     }
                 } header: {
                     Text(t.recurringIncome)
-                        .appFont(.headline)
+                        .sectionTitle()
                 } footer: {
                     if incomes.monthlyIncome > 0 {
                         Text(t.monthlyIncome + ": " + t.money(incomes.monthlyIncome))
@@ -198,7 +201,7 @@ private struct AccountSummaryView: View {
                         }
                     } header: {
                         Text(t.autoPayments)
-                            .appFont(.headline)
+                            .sectionTitle()
                     }
                 }
 
@@ -225,7 +228,6 @@ private struct AccountSummaryView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .formStyle(.grouped)
             .sheet(item: $editingAccount) { account in
                 AccountFormView(account: account)
             }
@@ -253,22 +255,47 @@ private struct AccountSummaryView: View {
     }
 }
 
+/// Cuenta, inversión o meta con su tarjetita de color. Las metas muestran cuánto llevan.
 struct AccountRow: View {
     @Environment(\.l10n) private var t
+    @Environment(\.colorScheme) private var scheme
     let account: Account
 
     var body: some View {
-        HStack(spacing: 12) {
-            Label(account.name, systemImage: account.kind.systemImage)
-                .appFont(.body, weight: .medium)
-            Spacer()
-            Text(t.money(account.balance))
-                .appFont(.title3, weight: .semibold)
-                .monospacedDigit()
-                .foregroundStyle(account.balance < 0 ? Color.red : Color.primary)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 14) {
+                CardChip(systemImage: account.kind.systemImage, tint: account.kind.tint)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(account.name)
+                        .appFont(.body, weight: .semibold)
+                    Text(caption)
+                        .appFont(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text(t.money(account.balance))
+                    .appFont(.title3, weight: .bold)
+                    .monospacedDigit()
+                    .foregroundStyle(account.balance < 0 ? Color.red : Color.primary)
+            }
+
+            if let progress = account.goalProgress {
+                ProgressView(value: progress)
+                    .tint(account.kind.tint.solid(scheme))
+                Text(progress >= 1 ? t.goalReached : t.goalLeft(account.goalAmount - account.balance))
+                    .appFont(.subheadline, weight: progress >= 1 ? .semibold : .regular)
+                    .foregroundStyle(progress >= 1 ? account.kind.tint.solid(scheme) : Color.secondary)
+            }
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
+    }
+
+    private var caption: String {
+        if account.kind == .goal, account.goalAmount > 0 {
+            return t.amountOf(account.balance, account.goalAmount)
+        }
+        return t.savingsKindName(account.kind)
     }
 }
 

@@ -5,11 +5,11 @@ struct DashboardView: View {
     @Environment(\.l10n) private var t
     @Environment(\.modelContext) private var context
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.textScale) private var scale
     @AppStorage(HomeSection.accounts.storageKey) private var showAccounts = true
     @AppStorage(HomeSection.investments.storageKey) private var showInvestments = true
     @AppStorage(HomeSection.debts.storageKey) private var showDebts = true
     @AppStorage(HomeSection.assets.storageKey) private var showAssets = true
-    @AppStorage(L10n.hidesAmountsKey) private var hidesAmounts = false
     @Query private var debts: [Debt]
     @Query(sort: \Account.createdAt) private var allAccounts: [Account]
     @Query private var incomes: [RecurringIncome]
@@ -29,70 +29,83 @@ struct DashboardView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 18) {
+                Text(t.weekdayDate(Date()))
+                    .sectionTitle()
+
                 if showAccounts {
                     NavigationLink {
                         AccountsView()
                     } label: {
-                        SummaryCard(
+                        HeroCard(
                             title: t.accounts,
                             systemImage: AccountKind.checking.systemImage,
                             amount: accounts.totalBalance,
-                            subtitle: accountsSubtitle
+                            subtitle: accountsSubtitle,
+                            tint: .mint
                         )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(PressableStyle())
                 }
 
-                if showInvestments {
-                    NavigationLink {
-                        InvestmentsView()
-                    } label: {
-                        SummaryCard(
-                            title: t.investments,
-                            systemImage: AccountKind.investment.systemImage,
-                            amount: investments.totalBalance,
-                            subtitle: investmentsSubtitle
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                if showDebts {
-                    NavigationLink {
-                        DebtsListView()
-                    } label: {
-                        SummaryCard(
-                            title: t.debts,
-                            systemImage: "creditcard",
-                            amount: totalDebt,
-                            subtitle: debtsSubtitle
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    if !debts.isEmpty {
+                // En Mac caben dos tarjetas por fila; en iPhone, una.
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 280 * scale), spacing: 16)], spacing: 16) {
+                    if showInvestments {
                         NavigationLink {
-                            PayoffView()
+                            InvestmentsView()
                         } label: {
-                            LinkCard(title: t.payoffQuestion, subtitle: t.payoffHint, systemImage: "calendar.badge.clock")
+                            CategoryCard(
+                                title: t.investments,
+                                systemImage: AccountKind.investment.systemImage,
+                                amount: investments.totalBalance,
+                                subtitle: investmentsSubtitle,
+                                tint: .teal,
+                                seed: 0
+                            )
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(PressableStyle())
+                    }
+
+                    if showDebts {
+                        NavigationLink {
+                            DebtsListView()
+                        } label: {
+                            CategoryCard(
+                                title: t.debts,
+                                systemImage: "creditcard",
+                                amount: totalDebt,
+                                subtitle: debtsSubtitle,
+                                tint: .peach,
+                                seed: 1
+                            )
+                        }
+                        .buttonStyle(PressableStyle())
+                    }
+
+                    if showAssets {
+                        NavigationLink {
+                            AssetsView()
+                        } label: {
+                            CategoryCard(
+                                title: t.assets,
+                                systemImage: "tag",
+                                amount: assets.reduce(0) { $0 + $1.value },
+                                subtitle: assetsSubtitle,
+                                tint: .sand,
+                                seed: 2
+                            )
+                        }
+                        .buttonStyle(PressableStyle())
                     }
                 }
 
-                if showAssets {
+                if showDebts && !debts.isEmpty {
                     NavigationLink {
-                        AssetsView()
+                        PayoffView()
                     } label: {
-                        SummaryCard(
-                            title: t.assets,
-                            systemImage: "tag",
-                            amount: assets.reduce(0) { $0 + $1.value },
-                            subtitle: assetsSubtitle
-                        )
+                        LinkCard(title: t.payoffQuestion, subtitle: t.payoffHint, systemImage: "calendar.badge.clock")
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(PressableStyle())
                 }
 
                 if !showsAnything {
@@ -104,19 +117,13 @@ struct DashboardView: View {
                 }
             }
             .padding(24)
-            .frame(maxWidth: 720)
+            .frame(maxWidth: 760)
             .frame(maxWidth: .infinity)
         }
-        .background(Color.groupedBackground)
+        .screenBackground()
         .navigationTitle(t.appName)
+        .hideAmountsToolbar()
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    hidesAmounts.toggle()
-                } label: {
-                    Label(hidesAmounts ? t.showAmounts : t.hideAmounts, systemImage: hidesAmounts ? "eye" : "eye.slash")
-                }
-            }
             ToolbarItem(placement: .primaryAction) {
                 #if os(macOS)
                 SettingsLink {
@@ -151,7 +158,14 @@ struct DashboardView: View {
 
     private var investmentsSubtitle: String {
         guard let first = investments.first else { return t.addInvestmentHint }
-        let name = investments.count == 1 ? first.name : t.investmentCount(investments.count)
+        let goalCount = investments.filter { $0.kind == .goal }.count
+        let investmentCount = investments.count - goalCount
+        let name = investments.count == 1
+            ? first.name
+            : [
+                investmentCount > 0 ? t.investmentCount(investmentCount) : nil,
+                goalCount > 0 ? t.goalCount(goalCount) : nil,
+            ].compactMap { $0 }.joined(separator: " · ")
         let monthly = incomes.monthlyContributions
         return monthly > 0 ? name + " · " + t.contributionsPerMonthShort(monthly) : name
     }
@@ -167,53 +181,131 @@ struct DashboardView: View {
     }
 }
 
-private struct SummaryCard: View {
+/// Tarjeta grande de color, como una tarjeta de banco, para el saldo de las cuentas.
+private struct HeroCard: View {
     @Environment(\.l10n) private var t
     @Environment(\.textScale) private var scale
+    @Environment(\.colorScheme) private var scheme
     let title: String
     let systemImage: String
     let amount: Double
     let subtitle: String
+    let tint: ThemeTint
 
     var body: some View {
-        HStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 8) {
-                Label(title, systemImage: systemImage)
+        let shape = RoundedRectangle(cornerRadius: 28, style: .continuous)
+
+        VStack(alignment: .leading, spacing: 14 * scale) {
+            HStack(spacing: 10) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 16 * scale, weight: .semibold, design: .rounded))
+                    .frame(width: 34 * scale, height: 34 * scale)
+                    .background(.white.opacity(0.22), in: RoundedRectangle(cornerRadius: 11 * scale, style: .continuous))
+                Text(title)
+                    .appFont(.subheadline, weight: .bold)
+                    .textCase(.uppercase)
+                    .tracking(1.4)
+                Spacer()
+                Image(systemName: "chevron.right")
                     .appFont(.headline)
-                    .foregroundStyle(.secondary)
-                Text(t.money(amount))
-                    .font(.system(size: 36 * scale, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                Text(subtitle)
-                    .foregroundStyle(.secondary)
+                    .opacity(0.7)
             }
             Spacer(minLength: 0)
-            Image(systemName: "chevron.right")
-                .appFont(.headline)
-                .foregroundStyle(.tertiary)
+            Text(t.money(amount))
+                .font(.system(size: 44 * scale, weight: .heavy, design: .rounded))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            Text(subtitle)
+                .appFont(.body, weight: .medium)
+                .opacity(0.85)
+                .lineLimit(2)
         }
-        .modifier(CardStyle(padding: 20))
+        .foregroundStyle(.white)
+        .padding(22 * scale)
+        .frame(maxWidth: .infinity, minHeight: 190 * scale, alignment: .leading)
+        .background {
+            ZStack {
+                LinearGradient(colors: tint.gradient(scheme), startPoint: .topLeading, endPoint: .bottomTrailing)
+                Bubbles()
+            }
+        }
+        .clipShape(shape)
+        .overlay(
+            shape.strokeBorder(
+                LinearGradient(colors: [.white.opacity(0.5), .white.opacity(0.05)], startPoint: .top, endPoint: .bottom),
+                lineWidth: 1
+            )
+        )
+        .shadow(color: tint.solid(scheme).opacity(scheme == .dark ? 0.3 : 0.35), radius: 24, y: 12)
+        .contentShape(shape)
     }
 }
 
-/// Tarjeta chica que solo lleva a otra pantalla.
-private struct LinkCard: View {
+/// Tarjeta de vidrio con el monto en el color de la categoría y una ola de adorno abajo.
+private struct CategoryCard: View {
+    @Environment(\.l10n) private var t
     @Environment(\.textScale) private var scale
+    @Environment(\.colorScheme) private var scheme
+    let title: String
+    let systemImage: String
+    let amount: Double
+    let subtitle: String
+    let tint: ThemeTint
+    let seed: Int
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 24, style: .continuous)
+
+        VStack(alignment: .leading, spacing: 10 * scale) {
+            HStack(spacing: 10) {
+                IconTile(systemImage: systemImage, tint: tint)
+                Text(title)
+                    .appFont(.subheadline, weight: .bold)
+                    .textCase(.uppercase)
+                    .tracking(1.1)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .appFont(.headline)
+                    .foregroundStyle(.tertiary)
+            }
+            Text(t.money(amount))
+                .font(.system(size: 30 * scale, weight: .heavy, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(tint.solid(scheme))
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            Text(subtitle)
+                .appFont(.subheadline)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+        }
+        .padding(18 * scale)
+        .padding(.bottom, 26 * scale)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .background(alignment: .bottom) {
+            WaveDecoration(tint: tint, seed: seed)
+                .frame(height: 46 * scale)
+        }
+        .clipShape(shape)
+        .glassCard(cornerRadius: 24, tint: tint.solid(scheme).opacity(0.08))
+        .contentShape(shape)
+    }
+}
+
+/// Tarjeta chica de vidrio que solo lleva a otra pantalla.
+private struct LinkCard: View {
     let title: String
     let subtitle: String
     let systemImage: String
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: systemImage)
-                .appFont(.title3)
-                .foregroundStyle(.tint)
-                .frame(width: 32 * scale)
+            IconTile(systemImage: systemImage, tint: .mint, size: 38)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .appFont(.body, weight: .medium)
+                    .appFont(.body, weight: .semibold)
                 Text(subtitle)
                     .appFont(.subheadline)
                     .foregroundStyle(.secondary)
@@ -223,25 +315,8 @@ private struct LinkCard: View {
                 .appFont(.headline)
                 .foregroundStyle(.tertiary)
         }
-        .modifier(CardStyle(padding: 14))
-    }
-}
-
-/// Fondo, borde y resaltado al pasar el puntero de las tarjetas de inicio.
-private struct CardStyle: ViewModifier {
-    @Environment(\.textScale) private var scale
-    let padding: CGFloat
-
-    @State private var hovering = false
-
-    func body(content: Content) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
-
-        content
-            .padding(padding * scale)
-            .background(Color.cardBackground, in: shape)
-            .overlay(shape.strokeBorder(Color.secondary.opacity(hovering ? 0.4 : 0.2), lineWidth: hovering ? 1 : 0.5))
-            .contentShape(shape)
-            .onHover { hovering = $0 }
+        .padding(14)
+        .glassCard(cornerRadius: 22)
+        .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 }

@@ -9,7 +9,7 @@ struct LoanDetailView: View {
         let amortization = debt.amortization
         let rows = amortization.schedule()
 
-        Form {
+        ThemedForm {
             Section {
                 LabeledContent(t.remainingBalance) {
                     Text(t.money(debt.balance))
@@ -26,7 +26,7 @@ struct LoanDetailView: View {
                 AutoPaymentLine(debt: debt)
             } header: {
                 Text(t.summary)
-                    .appFont(.headline)
+                    .sectionTitle()
             } footer: {
                 Text(t.monthlyInterestFooter)
                     .appFont(.subheadline)
@@ -38,7 +38,7 @@ struct LoanDetailView: View {
                     LabeledContent(t.insuranceAmount, value: t.money(debt.insuranceAmount))
                 } header: {
                     Label(t.insurance, systemImage: "shield")
-                        .appFont(.headline)
+                        .sectionTitle()
                 } footer: {
                     Text(t.insuranceFooter)
                         .appFont(.subheadline)
@@ -65,13 +65,12 @@ struct LoanDetailView: View {
                 }
             } header: {
                 Text(t.estimateSection)
-                    .appFont(.headline)
+                    .sectionTitle()
             } footer: {
                 Text(t.approxNote)
                     .appFont(.subheadline)
                     .foregroundStyle(.secondary)
             }
         }
-        .formStyle(.grouped)
     }
 }

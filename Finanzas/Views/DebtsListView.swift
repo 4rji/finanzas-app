@@ -21,9 +21,10 @@ struct DebtsListView: View {
                 } actions: {
                     Menu(t.add) { addMenuItems }
                         .fixedSize()
+                        .prominentButton()
                 }
             } else {
-                List {
+                ThemedList {
                     Section {
                         LabeledContent(t.totalDebt) {
                             Text(t.money(totalDebt))
@@ -64,14 +65,16 @@ struct DebtsListView: View {
                                 }
                             } header: {
                                 Text(t.kindPlural(kind))
-                                    .appFont(.headline)
+                                    .sectionTitle()
                             }
                         }
                     }
                 }
             }
         }
+        .screenBackground()
         .navigationTitle(t.debts)
+        .hideAmountsToolbar()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
@@ -105,18 +108,14 @@ struct DebtsListView: View {
 
 private struct DebtRow: View {
     @Environment(\.l10n) private var t
-    @Environment(\.textScale) private var scale
     let debt: Debt
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: debt.kind.systemImage)
-                .appFont(.title3)
-                .foregroundStyle(.tint)
-                .frame(width: 32 * scale)
+            IconTile(systemImage: debt.kind.systemImage, tint: debt.kind.tint)
             VStack(alignment: .leading, spacing: 2) {
                 Text(debt.name)
-                    .appFont(.body, weight: .medium)
+                    .appFont(.body, weight: .semibold)
                 Text(subtitle)
                     .appFont(.subheadline)
                     .foregroundStyle(.secondary)

@@ -4,14 +4,16 @@ import SwiftData
 /// Lo que se puede agregar con el botón +.
 private enum NewInvestmentItem: String, Identifiable {
     case investment
+    case goal
     case transfer
     case contribution
 
     var id: String { rawValue }
 }
 
-/// Inversiones como 401(k), FSA o acciones: solo nombre y valor. El dinero entra o sale con
-/// transferencias desde otra cuenta o con aportes recurrentes.
+/// Inversiones como 401(k), FSA o acciones, y metas de ahorro: solo nombre y valor (y en las metas,
+/// cuánto se quiere juntar). El dinero entra o sale con transferencias desde otra cuenta o con
+/// aportes recurrentes.
 struct InvestmentsView: View {
     @Environment(\.l10n) private var t
     @Environment(\.modelContext) private var context
@@ -22,7 +24,10 @@ struct InvestmentsView: View {
     @State private var editingAccount: Account?
     @State private var editingIncome: RecurringIncome?
 
+    /// Inversiones y metas juntas, para mover dinero y aportar a cualquiera.
     private var investments: [Account] { allAccounts.investments }
+    private var investmentsOnly: [Account] { investments.filter { $0.kind == .investment } }
+    private var goals: [Account] { investments.filter { $0.kind == .goal } }
     private var contributions: [RecurringIncome] { allIncomes.filter(\.isInvestment) }
 
     var body: some View {
@@ -34,12 +39,16 @@ struct InvestmentsView: View {
                     Text(t.noInvestmentsMessage)
                 } actions: {
                     Button(t.addInvestment) { newItem = .investment }
+                        .prominentButton()
+                    Button(t.addGoal) { newItem = .goal }
                 }
             } else {
                 summary
             }
         }
+        .screenBackground()
         .navigationTitle(t.investments)
+        .hideAmountsToolbar()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
@@ -47,6 +56,11 @@ struct InvestmentsView: View {
                         newItem = .investment
                     } label: {
                         Label(t.investment, systemImage: AccountKind.investment.systemImage)
+                    }
+                    Button {
+                        newItem = .goal
+                    } label: {
+                        Label(t.goal, systemImage: AccountKind.goal.systemImage)
                     }
                     Button {
                         newItem = .transfer
@@ -68,6 +82,7 @@ struct InvestmentsView: View {
         .sheet(item: $newItem) { item in
             switch item {
             case .investment: AccountFormView(kind: .investment)
+            case .goal: AccountFormView(kind: .goal)
             case .transfer: TransferFormView(to: investments.first)
             case .contribution: TransferFormView(to: investments.first, repeats: true)
             }
@@ -75,26 +90,21 @@ struct InvestmentsView: View {
     }
 
     private var summary: some View {
-        Form {
-            Section {
-                ForEach(investments) { account in
-                    Button {
-                        editingAccount = account
-                    } label: {
-                        AccountRow(account: account)
-                    }
-                    .buttonStyle(.plain)
-                }
-                if investments.count > 1 {
+        ThemedForm {
+            if !investmentsOnly.isEmpty {
+                accountsSection(investmentsOnly, title: t.investmentsSection)
+            }
+            if !goals.isEmpty {
+                accountsSection(goals, title: t.goals)
+            }
+            if investments.count > 1 {
+                Section {
                     LabeledContent(t.totalValue) {
                         Text(t.money(investments.totalBalance))
                             .fontWeight(.semibold)
                             .monospacedDigit()
                     }
                 }
-            } header: {
-                Text(t.investments)
-                    .appFont(.headline)
             }
 
             Section {
@@ -121,7 +131,7 @@ struct InvestmentsView: View {
                 }
             } header: {
                 Text(t.recurringContributions)
-                    .appFont(.headline)
+                    .sectionTitle()
             } footer: {
                 if contributions.monthlyContributions > 0 {
                     Text(t.monthlyAmountApprox + ": " + t.money(contributions.monthlyContributions))
@@ -142,12 +152,27 @@ struct InvestmentsView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .formStyle(.grouped)
         .sheet(item: $editingAccount) { account in
             AccountFormView(account: account)
         }
         .sheet(item: $editingIncome) { income in
             TransferFormView(recurring: income)
+        }
+    }
+
+    private func accountsSection(_ accounts: [Account], title: String) -> some View {
+        Section {
+            ForEach(accounts) { account in
+                Button {
+                    editingAccount = account
+                } label: {
+                    AccountRow(account: account)
+                }
+                .buttonStyle(.plain)
+            }
+        } header: {
+            Text(title)
+                .sectionTitle()
         }
     }
 

@@ -65,7 +65,7 @@ struct RecurringIncomeFormView: View {
                 AccountPicker(accounts: accounts, selection: $account)
             } header: {
                 Label(t.recurringIncomeItem, systemImage: "repeat")
-                    .appFont(.headline)
+                    .sectionTitle()
             } footer: {
                 Text(t.recurringIncomeFooter)
                     .appFont(.subheadline)

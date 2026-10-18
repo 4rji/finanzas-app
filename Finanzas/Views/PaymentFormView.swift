@@ -91,7 +91,7 @@ struct PaymentFormView: View {
                 DateField(title: dateTitle, date: $date)
             } header: {
                 Label(t.recordPayment, systemImage: MovementKind.payment.systemImage)
-                    .appFont(.headline)
+                    .sectionTitle()
             } footer: {
                 if let selectedDebt {
                     Text(footer(for: selectedDebt))

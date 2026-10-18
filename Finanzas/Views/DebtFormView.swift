@@ -97,7 +97,7 @@ struct DebtFormView: View {
 
     private var header: some View {
         Label(t.kindName(kind), systemImage: kind.systemImage)
-            .appFont(.headline)
+            .sectionTitle()
     }
 
     @ViewBuilder
@@ -139,7 +139,7 @@ struct DebtFormView: View {
                 }
             } header: {
                 Text(t.balanceSection)
-                    .appFont(.headline)
+                    .sectionTitle()
             } footer: {
                 Text(t.balanceTypeFooter)
                     .appFont(.subheadline)
@@ -173,7 +173,7 @@ struct DebtFormView: View {
                 DecimalField(title: t.insuranceAmount, text: $insuranceText, prefix: t.currencySymbol)
             } header: {
                 Label(t.insurance, systemImage: "shield")
-                    .appFont(.headline)
+                    .sectionTitle()
             } footer: {
                 Text(t.insuranceFooter)
                     .appFont(.subheadline)
@@ -210,7 +210,7 @@ struct DebtFormView: View {
             }
         } header: {
             Label(t.autoPay, systemImage: "arrow.triangle.2.circlepath")
-                .appFont(.headline)
+                .sectionTitle()
         } footer: {
             if !accounts.isEmpty {
                 Text(t.autoPayFooter)

@@ -42,7 +42,7 @@ struct L10n {
 
     var appName: String { "Finanzas" }
     var debts: String { pick("Debts", "Deudas") }
-    var investments: String { pick("Investments", "Inversiones") }
+    var investments: String { pick("Investments & goals", "Inversiones y metas") }
     var assets: String { pick("Property", "Bienes") }
     var totalDebt: String { pick("Total debt", "Deuda total") }
     var add: String { pick("Add", "Agregar") }
@@ -54,6 +54,16 @@ struct L10n {
     var settings: String { pick("Settings", "Configuración") }
     var languageTitle: String { pick("Language", "Idioma") }
     var textSizeTitle: String { pick("Text size", "Tamaño de letra") }
+    var appearanceTitle: String { pick("Appearance", "Apariencia") }
+
+    func appearanceName(_ appearance: AppAppearance) -> String {
+        switch appearance {
+        case .system: return pick("System", "Sistema")
+        case .light: return pick("Light", "Claro")
+        case .dark: return pick("Dark", "Oscuro")
+        }
+    }
+
     var hideAmounts: String { pick("Hide amounts", "Ocultar saldos") }
     var showAmounts: String { pick("Show amounts", "Mostrar saldos") }
     var showOnHome: String { pick("Show on home screen", "Mostrar en inicio") }
@@ -367,13 +377,14 @@ struct L10n {
 
     // Inversiones
     var investment: String { pick("Investment", "Inversión") }
-    var noInvestmentsTitle: String { pick("No investments yet", "Aún no hay inversiones") }
+    var investmentsSection: String { pick("Investments", "Inversiones") }
+    var noInvestmentsTitle: String { pick("No investments or goals yet", "Aún no hay inversiones ni metas") }
     var noInvestmentsMessage: String {
-        pick("Add an investment like a 401(k), FSA or stocks with what it's worth today.",
-             "Agrega una inversión como 401(k), FSA o acciones con lo que vale hoy.")
+        pick("Add an investment like a 401(k), FSA or stocks, or a goal to save toward, like a vacation.",
+             "Agrega una inversión como 401(k), FSA o acciones, o una meta para ir ahorrando, como unas vacaciones.")
     }
     var addInvestment: String { pick("Add investment", "Agregar inversión") }
-    var addInvestmentHint: String { pick("Add a 401(k), FSA or stocks", "Agrega 401(k), FSA o acciones") }
+    var addInvestmentHint: String { pick("Add a 401(k), stocks or a savings goal", "Agrega 401(k), acciones o una meta de ahorro") }
     var investmentNamePlaceholder: String { pick("e.g. FSA, Stocks", "ej. FSA, Acciones") }
     var investmentValue: String { pick("Current value", "Valor actual") }
     var investmentFooter: String {
@@ -396,6 +407,37 @@ struct L10n {
     var investmentsHistoryHint: String {
         pick("Transfers and contributions are listed in Accounts → History.",
              "Las transferencias y aportes se ven en Cuentas → Historial.")
+    }
+
+    // Metas
+    var goal: String { pick("Goal", "Meta") }
+    var goals: String { pick("Goals", "Metas") }
+    var addGoal: String { pick("Add goal", "Agregar meta") }
+    var typeTitle: String { pick("Type", "Tipo") }
+    var goalNamePlaceholder: String { pick("e.g. Vacation, Emergency fund", "ej. Vacaciones, Fondo de emergencia") }
+    var goalAmount: String { pick("How much you want to save", "¿Cuánto quieres juntar?") }
+    var savedSoFar: String { pick("Saved so far", "Ahorrado hasta hoy") }
+    var goalReached: String { pick("Goal reached!", "¡Meta cumplida!") }
+    var goalFooter: String {
+        pick("Save toward it with Move money or a recurring contribution. It can be a savings account or an investment, whatever you prefer.",
+             "Ve juntando con Mover dinero o con un aporte recurrente. Puede ser una cuenta de ahorro o una inversión, como prefieras.")
+    }
+
+    func goalLeft(_ value: Double) -> String {
+        pick("", "Faltan ") + money(value) + pick(" to go", "")
+    }
+
+    func goalCount(_ n: Int) -> String {
+        if isSpanish { return n == 1 ? "1 meta" : "\(n) metas" }
+        return n == 1 ? "1 goal" : "\(n) goals"
+    }
+
+    func savingsKindName(_ kind: AccountKind) -> String {
+        switch kind {
+        case .checking: return account
+        case .investment: return investment
+        case .goal: return goal
+        }
     }
 
     func contributionsPerMonthShort(_ value: Double) -> String {
@@ -608,6 +650,12 @@ struct L10n {
 
     func date(_ date: Date) -> String {
         date.formatted(.dateTime.day().month(.abbreviated).year().locale(locale))
+    }
+
+    /// "Sábado, 18 de octubre" / "Saturday, October 18".
+    func weekdayDate(_ date: Date) -> String {
+        let text = date.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(locale))
+        return text.prefix(1).uppercased(with: locale) + text.dropFirst()
     }
 
     func shortDate(_ date: Date) -> String {
