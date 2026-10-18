@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Hoja con formulario y botones Cancelar / Guardar abajo, al estilo macOS.
-/// Esc cancela y Enter guarda.
+/// Hoja con formulario. En Mac: botones Cancelar / Guardar abajo (Esc cancela y Enter guarda).
+/// En iPhone: Cancelar / Guardar en la barra de arriba y Eliminar al final del formulario.
 struct FormSheet<Content: View>: View {
     @Environment(\.l10n) private var t
     @Environment(\.dismiss) private var dismiss
@@ -25,6 +25,7 @@ struct FormSheet<Content: View>: View {
     }
 
     var body: some View {
+        #if os(macOS)
         VStack(spacing: 0) {
             Form {
                 content
@@ -53,6 +54,34 @@ struct FormSheet<Content: View>: View {
             .padding()
         }
         .frame(minWidth: 460 * scale, minHeight: 420 * scale)
+        #else
+        NavigationStack {
+            Form {
+                content
+
+                if let onDelete {
+                    Section {
+                        Button(t.delete, role: .destructive) {
+                            onDelete()
+                            dismiss()
+                        }
+                    }
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(t.cancel) { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(t.save) {
+                        onSave()
+                        dismiss()
+                    }
+                    .disabled(!canSave)
+                }
+            }
+        }
+        #endif
     }
 }
 
@@ -87,6 +116,9 @@ struct DecimalField: View {
                 TextField(title, text: $text, prompt: Text("0"))
                     .labelsHidden()
                     .multilineTextAlignment(.trailing)
+                    #if os(iOS)
+                    .keyboardType(.decimalPad)
+                    #endif
                 if let suffix {
                     Text(suffix).foregroundStyle(.secondary)
                 }
@@ -114,8 +146,13 @@ struct UsageText: View {
 }
 
 extension Color {
+    #if os(macOS)
     static let groupedBackground = Color(nsColor: .windowBackgroundColor)
     static let cardBackground = Color(nsColor: .controlBackgroundColor)
+    #else
+    static let groupedBackground = Color(uiColor: .systemGroupedBackground)
+    static let cardBackground = Color(uiColor: .secondarySystemGroupedBackground)
+    #endif
 }
 
 /// Convierte texto como "1,234.50", "1.234,50", "$ 2500" o "18,5" a número.

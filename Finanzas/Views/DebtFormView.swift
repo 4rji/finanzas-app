@@ -98,7 +98,9 @@ struct DebtFormView: View {
                         Text(t.balanceTypeName(type)).tag(type)
                     }
                 }
+                #if os(macOS)
                 .pickerStyle(.radioGroup)
+                #endif
 
                 if balanceType != .installments {
                     DecimalField(title: t.revolvingSection, text: $balanceText, prefix: t.currencySymbol)

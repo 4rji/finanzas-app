@@ -18,6 +18,8 @@ struct DateField: View {
             }
             .popover(isPresented: $picking, arrowEdge: .bottom) {
                 StepDatePicker(date: $date) { picking = false }
+                    // En iPhone se queda como globo en lugar de abrirse como hoja.
+                    .presentationCompactAdaptation(.popover)
             }
         }
     }
@@ -89,8 +91,16 @@ private struct StepDatePicker: View {
             .frame(height: 5 * cellHeight + 4 * spacing)
         }
         .padding(14 * scale)
-        .frame(width: 300 * scale)
+        .frame(width: width)
         .animation(.easeInOut(duration: 0.15), value: step)
+    }
+
+    private var width: CGFloat {
+        #if os(iOS)
+        min(300 * scale, 340) // que quepa en la pantalla del iPhone
+        #else
+        300 * scale
+        #endif
     }
 
     private var header: some View {

@@ -45,9 +45,17 @@ struct DashboardView: View {
         .navigationTitle(t.appName)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
+                #if os(macOS)
                 SettingsLink {
                     Label(t.settings, systemImage: "gearshape")
                 }
+                #else
+                NavigationLink {
+                    SettingsView()
+                } label: {
+                    Label(t.settings, systemImage: "gearshape")
+                }
+                #endif
             }
         }
     }

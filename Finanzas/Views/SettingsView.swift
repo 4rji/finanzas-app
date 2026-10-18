@@ -20,7 +20,9 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        #if os(macOS)
         .frame(width: 420 * scale)
+        #endif
         .navigationTitle(t.settings)
     }
 }
