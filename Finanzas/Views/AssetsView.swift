@@ -47,18 +47,21 @@ struct AssetsView: View {
                 }
             }
         }
-        .screenBackground()
-        .navigationTitle(t.assets)
-        .hideAmountsToolbar()
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+        .safeAreaInset(edge: .top) {
+            TabHeader(caption: t.totalValue, amount: assets.reduce(0) { $0 + $1.value }) {
+                EmptyView()
+            } trailing: {
                 Button {
                     adding = true
                 } label: {
-                    Label(t.add, systemImage: "plus")
+                    Label(t.addAsset, systemImage: "plus")
                 }
+                .prominentButton()
             }
         }
+        .screenBackground()
+        .navigationTitle(t.assets)
+        .hideAmountsToolbar()
         .sheet(isPresented: $adding) {
             AssetFormView()
         }

@@ -66,8 +66,21 @@ struct L10n {
 
     var hideAmounts: String { pick("Hide amounts", "Ocultar saldos") }
     var showAmounts: String { pick("Show amounts", "Mostrar saldos") }
-    var showOnHome: String { pick("Show on home screen", "Mostrar en inicio") }
-    var showOnHomeFooter: String { pick("Hide the categories you don't need.", "Oculta las categorías que no necesites.") }
+    var homeSettingsTitle: String { pick("Home screen", "Pantalla de inicio") }
+    var homeSettingsMessage: String {
+        pick("Drag to reorder the sections. Turn them on or off to show or hide them on the home screen.",
+             "Arrastra para cambiar el orden. Activa o desactiva cada sección para mostrarla u ocultarla en inicio.")
+    }
+    var generalTitle: String { pick("General", "General") }
+
+    func homeSectionName(_ section: HomeSection) -> String {
+        switch section {
+        case .accounts: return accounts
+        case .investments: return investments
+        case .debts: return debts
+        case .assets: return assets
+        }
+    }
     var everythingHidden: String { pick("Everything is hidden", "Todo está oculto") }
     var everythingHiddenMessage: String {
         pick("Turn the categories back on in Settings.", "Vuelve a mostrar las categorías en Configuración.")
@@ -524,6 +537,22 @@ struct L10n {
 
     func incomePerMonthShort(_ value: Double) -> String {
         pick("Income ", "Ingreso ") + approxPerMonth(value)
+    }
+
+    // Resumen del mes
+    var soFar: String { pick("So far", "Hasta hoy") }
+    var forecast: String { pick("Forecast", "Pronóstico") }
+    var summaryIncome: String { pick("Income", "Ingresos") }
+    var summaryPayments: String { pick("Payments", "Pagos") }
+    var summaryNet: String { pick("Net", "Neto") }
+    var monthSummaryFooter: String {
+        pick("Checking accounts only. The forecast adds the rest of the month's recurring income and automatic payments. Transfers between your accounts don't count.",
+             "Solo cuentas de cheques. El pronóstico suma lo que falta del mes de ingresos recurrentes y pagos automáticos. Las transferencias entre tus cuentas no cuentan.")
+    }
+
+    /// "Resumen de octubre de 2026" / "October 2026 summary".
+    func monthSummaryTitle(_ date: Date) -> String {
+        isSpanish ? "Resumen de " + monthYearLong(date).lowercased(with: locale) : monthYearLong(date) + " summary"
     }
 
     var extraIncome: String { pick("Extra income", "Ingreso extra") }

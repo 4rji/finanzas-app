@@ -10,11 +10,14 @@ struct DashboardView: View {
     @AppStorage(HomeSection.investments.storageKey) private var showInvestments = true
     @AppStorage(HomeSection.debts.storageKey) private var showDebts = true
     @AppStorage(HomeSection.assets.storageKey) private var showAssets = true
+    @AppStorage(HomeSection.orderKey) private var orderRaw = ""
     @Query private var debts: [Debt]
     @Query(sort: \Account.createdAt) private var allAccounts: [Account]
     @Query private var incomes: [RecurringIncome]
     @Query private var movements: [Movement]
     @Query(sort: \Asset.createdAt) private var assets: [Asset]
+
+    @State private var showingSettings = false
 
     private var accounts: [Account] { allAccounts.checking }
     private var investments: [Account] { allAccounts.investments }
@@ -23,92 +26,35 @@ struct DashboardView: View {
         debts.reduce(0) { $0 + $1.totalOwed }
     }
 
-    private var showsAnything: Bool {
-        showAccounts || showInvestments || showDebts || showAssets
-    }
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 Text(t.weekdayDate(Date()))
                     .sectionTitle()
 
-                if showAccounts {
-                    NavigationLink {
-                        AccountsView()
-                    } label: {
-                        HeroCard(
-                            title: t.accounts,
-                            systemImage: AccountKind.checking.systemImage,
-                            amount: accounts.totalBalance,
-                            subtitle: accountsSubtitle,
-                            tint: .mint
-                        )
-                    }
-                    .buttonStyle(PressableStyle())
-                }
-
-                // En Mac caben dos tarjetas por fila; en iPhone, una.
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 280 * scale), spacing: 16)], spacing: 16) {
-                    if showInvestments {
-                        NavigationLink {
-                            InvestmentsView()
-                        } label: {
-                            CategoryCard(
-                                title: t.investments,
-                                systemImage: AccountKind.investment.systemImage,
-                                amount: investments.totalBalance,
-                                subtitle: investmentsSubtitle,
-                                tint: .teal,
-                                seed: 0
-                            )
+                ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
+                    if block == [.accounts] {
+                        accountsCard
+                    } else {
+                        // En Mac caben dos tarjetas por fila; en iPhone, una.
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 280 * scale), spacing: 16)], spacing: 16) {
+                            ForEach(block, id: \.self) { section in
+                                card(for: section)
+                            }
                         }
-                        .buttonStyle(PressableStyle())
                     }
 
-                    if showDebts {
+                    if block.contains(.debts) && !debts.isEmpty {
                         NavigationLink {
-                            DebtsListView()
+                            PayoffView()
                         } label: {
-                            CategoryCard(
-                                title: t.debts,
-                                systemImage: "creditcard",
-                                amount: totalDebt,
-                                subtitle: debtsSubtitle,
-                                tint: .peach,
-                                seed: 1
-                            )
-                        }
-                        .buttonStyle(PressableStyle())
-                    }
-
-                    if showAssets {
-                        NavigationLink {
-                            AssetsView()
-                        } label: {
-                            CategoryCard(
-                                title: t.assets,
-                                systemImage: "tag",
-                                amount: assets.reduce(0) { $0 + $1.value },
-                                subtitle: assetsSubtitle,
-                                tint: .sand,
-                                seed: 2
-                            )
+                            LinkCard(title: t.payoffQuestion, subtitle: t.payoffHint, systemImage: "calendar.badge.clock")
                         }
                         .buttonStyle(PressableStyle())
                     }
                 }
 
-                if showDebts && !debts.isEmpty {
-                    NavigationLink {
-                        PayoffView()
-                    } label: {
-                        LinkCard(title: t.payoffQuestion, subtitle: t.payoffHint, systemImage: "calendar.badge.clock")
-                    }
-                    .buttonStyle(PressableStyle())
-                }
-
-                if !showsAnything {
+                if blocks.isEmpty {
                     ContentUnavailableView(
                         t.everythingHidden,
                         systemImage: "eye.slash",
@@ -125,18 +71,15 @@ struct DashboardView: View {
         .hideAmountsToolbar()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                #if os(macOS)
-                SettingsLink {
-                    Label(t.settings, systemImage: "gearshape")
-                }
-                #else
-                NavigationLink {
-                    SettingsView()
+                Button {
+                    showingSettings = true
                 } label: {
                     Label(t.settings, systemImage: "gearshape")
                 }
-                #endif
             }
+        }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView()
         }
         // Suma los depósitos recurrentes y aplica los pagos automáticos que ya tocan al abrir la app,
         // al volver a ella y cuando cambian los movimientos (por ejemplo, al llegar cambios de otro dispositivo).
@@ -146,6 +89,98 @@ struct DashboardView: View {
         }
         .onChange(of: movements.count) {
             RecurringDeposits.update(in: context)
+        }
+    }
+
+    /// Secciones visibles en el orden de Configuración. Cuentas va sola (tarjeta grande) y las
+    /// demás seguidas se juntan en una cuadrícula.
+    private var blocks: [[HomeSection]] {
+        var result: [[HomeSection]] = []
+        for section in HomeSection.ordered(orderRaw) where isShown(section) {
+            if section == .accounts || result.last == [.accounts] || result.isEmpty {
+                result.append([section])
+            } else {
+                result[result.count - 1].append(section)
+            }
+        }
+        return result
+    }
+
+    private func isShown(_ section: HomeSection) -> Bool {
+        switch section {
+        case .accounts: return showAccounts
+        case .investments: return showInvestments
+        case .debts: return showDebts
+        case .assets: return showAssets
+        }
+    }
+
+    private var accountsCard: some View {
+        NavigationLink {
+            AccountsView()
+        } label: {
+            HeroCard(
+                title: t.accounts,
+                systemImage: HomeSection.accounts.systemImage,
+                amount: accounts.totalBalance,
+                subtitle: accountsSubtitle,
+                history: BalanceHistory.points(
+                    current: accounts.totalBalance,
+                    changes: BalanceHistory.checkingChanges(movements)
+                ),
+                tint: HomeSection.accounts.tint
+            )
+        }
+        .buttonStyle(PressableStyle())
+    }
+
+    @ViewBuilder
+    private func card(for section: HomeSection) -> some View {
+        switch section {
+        case .accounts:
+            accountsCard
+        case .investments:
+            NavigationLink {
+                InvestmentsView()
+            } label: {
+                CategoryCard(
+                    title: t.investments,
+                    systemImage: section.systemImage,
+                    amount: investments.totalBalance,
+                    subtitle: investmentsSubtitle,
+                    tint: section.tint,
+                    seed: 0
+                )
+            }
+            .buttonStyle(PressableStyle())
+        case .debts:
+            NavigationLink {
+                DebtsListView()
+            } label: {
+                CategoryCard(
+                    title: t.debts,
+                    systemImage: section.systemImage,
+                    amount: totalDebt,
+                    subtitle: debtsSubtitle,
+                    tint: section.tint,
+                    seed: 1
+                )
+            }
+            .buttonStyle(PressableStyle())
+        case .assets:
+            NavigationLink {
+                AssetsView()
+            } label: {
+                CategoryCard(
+                    title: t.assets,
+                    systemImage: section.systemImage,
+                    amount: assets.reduce(0) { $0 + $1.value },
+                    subtitle: assetsSubtitle,
+                    tint: section.tint,
+                    seed: 2
+                )
+            }
+            .buttonStyle(PressableStyle())
         }
     }
 
@@ -181,7 +216,8 @@ struct DashboardView: View {
     }
 }
 
-/// Tarjeta grande de color, como una tarjeta de banco, para el saldo de las cuentas.
+/// Tarjeta grande de color, como una tarjeta de banco, para el saldo de las cuentas. Al pie va la
+/// línea de cómo ha subido y bajado el saldo.
 private struct HeroCard: View {
     @Environment(\.l10n) private var t
     @Environment(\.textScale) private var scale
@@ -190,6 +226,7 @@ private struct HeroCard: View {
     let systemImage: String
     let amount: Double
     let subtitle: String
+    let history: [Double]
     let tint: ThemeTint
 
     var body: some View {
@@ -210,7 +247,6 @@ private struct HeroCard: View {
                     .appFont(.headline)
                     .opacity(0.7)
             }
-            Spacer(minLength: 0)
             Text(t.money(amount))
                 .font(.system(size: 44 * scale, weight: .heavy, design: .rounded))
                 .monospacedDigit()
@@ -223,11 +259,15 @@ private struct HeroCard: View {
         }
         .foregroundStyle(.white)
         .padding(22 * scale)
-        .frame(maxWidth: .infinity, minHeight: 190 * scale, alignment: .leading)
+        .padding(.bottom, 58 * scale)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background {
-            ZStack {
+            ZStack(alignment: .bottom) {
                 LinearGradient(colors: tint.gradient(scheme), startPoint: .topLeading, endPoint: .bottomTrailing)
                 Bubbles()
+                Sparkline(values: history)
+                    .frame(height: 56 * scale)
+                    .padding(.bottom, 14 * scale)
             }
         }
         .clipShape(shape)

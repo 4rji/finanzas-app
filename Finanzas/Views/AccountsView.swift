@@ -8,7 +8,7 @@ private enum AccountsTab: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-/// Lo que se puede agregar con el botón +.
+/// Lo que se puede agregar desde la barra de arriba.
 private enum NewItem: String, Identifiable {
     case account
     case income
@@ -40,11 +40,8 @@ struct AccountsView: View {
                 HistoryView(showsAccount: allAccounts.count > 1)
             }
         }
-        .screenBackground()
-        .navigationTitle(t.accounts)
-        .hideAmountsToolbar()
-        .toolbar {
-            ToolbarItem(placement: .principal) {
+        .safeAreaInset(edge: .top) {
+            TabHeader(caption: t.totalBalance, amount: accounts.totalBalance) {
                 Picker(t.accounts, selection: $tab) {
                     Text(t.balance).tag(AccountsTab.balance)
                     Text(t.history).tag(AccountsTab.history)
@@ -52,43 +49,20 @@ struct AccountsView: View {
                 .pickerStyle(.segmented)
                 .labelsHidden()
                 .fixedSize()
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    Button {
-                        newItem = .account
-                    } label: {
-                        Label(t.account, systemImage: "building.columns")
-                    }
-                    Button {
-                        newItem = .income
-                    } label: {
-                        Label(t.recurringIncomeItem, systemImage: "repeat")
-                    }
-                    .disabled(accounts.isEmpty)
-                    Button {
-                        newItem = .extra
-                    } label: {
-                        Label(t.extraIncome, systemImage: MovementKind.extra.systemImage)
-                    }
-                    .disabled(accounts.isEmpty)
-                    Button {
-                        newItem = .payment
-                    } label: {
-                        Label(t.recordPayment, systemImage: MovementKind.payment.systemImage)
-                    }
-                    .disabled(accounts.isEmpty || debts.isEmpty)
-                    Button {
-                        newItem = .transfer
-                    } label: {
-                        Label(t.moveMoney, systemImage: MovementKind.transfer.systemImage)
-                    }
-                    .disabled(allAccounts.isEmpty)
+            } trailing: {
+                Button {
+                    newItem = .transfer
                 } label: {
-                    Label(t.add, systemImage: "plus")
+                    Label(t.moveMoney, systemImage: MovementKind.transfer.systemImage)
                 }
+                .glassButton()
+                .disabled(allAccounts.isEmpty)
+                addMenu
             }
         }
+        .screenBackground()
+        .navigationTitle(t.accounts)
+        .hideAmountsToolbar()
         .sheet(item: $newItem) { item in
             switch item {
             case .account: AccountFormView()
@@ -99,6 +73,39 @@ struct AccountsView: View {
             }
         }
     }
+
+    private var addMenu: some View {
+        Menu {
+            Button {
+                newItem = .account
+            } label: {
+                Label(t.account, systemImage: AccountKind.checking.systemImage)
+            }
+            Button {
+                newItem = .income
+            } label: {
+                Label(t.recurringIncomeItem, systemImage: "repeat")
+            }
+            .disabled(accounts.isEmpty)
+            Button {
+                newItem = .extra
+            } label: {
+                Label(t.extraIncome, systemImage: MovementKind.extra.systemImage)
+            }
+            .disabled(accounts.isEmpty)
+            Button {
+                newItem = .payment
+            } label: {
+                Label(t.recordPayment, systemImage: MovementKind.payment.systemImage)
+            }
+            .disabled(accounts.isEmpty || debts.isEmpty)
+        } label: {
+            Label(t.add, systemImage: "plus")
+        }
+        .menuStyle(.button)
+        .prominentButton()
+        .fixedSize()
+    }
 }
 
 private struct AccountSummaryView: View {
@@ -106,6 +113,7 @@ private struct AccountSummaryView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \RecurringIncome.createdAt) private var allIncomes: [RecurringIncome]
     @Query(sort: \RecurringPayment.createdAt) private var allAutoPayments: [RecurringPayment]
+    @Query private var movements: [Movement]
 
     let accounts: [Account]
     let canPay: Bool
@@ -227,6 +235,18 @@ private struct AccountSummaryView: View {
                         .appFont(.subheadline)
                         .foregroundStyle(.secondary)
                 }
+
+                let summary = MonthSummary(movements: movements, incomes: allIncomes, autoPayments: allAutoPayments)
+                Section {
+                    MonthSummaryGrid(summary: summary)
+                } header: {
+                    Text(t.monthSummaryTitle(summary.month))
+                        .sectionTitle()
+                } footer: {
+                    Text(t.monthSummaryFooter)
+                        .appFont(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             }
             .sheet(item: $editingAccount) { account in
                 AccountFormView(account: account)
@@ -331,6 +351,72 @@ struct RecurringIncomeRow: View {
             parts.insert(t.route(from: income.fromAccount?.name, to: income.account?.name ?? ""), at: 0)
         }
         return parts
+    }
+}
+
+/// Ingresos, pagos y neto del mes: lo que va hasta hoy y el pronóstico para todo el mes.
+private struct MonthSummaryGrid: View {
+    @Environment(\.l10n) private var t
+    @Environment(\.colorScheme) private var scheme
+    let summary: MonthSummary
+
+    var body: some View {
+        Grid(alignment: .trailing, horizontalSpacing: 16, verticalSpacing: 10) {
+            GridRow {
+                Color.clear
+                    .gridCellUnsizedAxes([.horizontal, .vertical])
+                columnTitle(t.soFar)
+                columnTitle(t.forecast)
+            }
+            GridRow {
+                rowTitle(t.summaryIncome)
+                amount(t.money(summary.income), color: ThemeTint.mint.solid(scheme))
+                amount(t.money(summary.expectedIncome), color: ThemeTint.mint.solid(scheme))
+            }
+            GridRow {
+                rowTitle(t.summaryPayments)
+                amount(spent(summary.payments), color: ThemeTint.peach.solid(scheme))
+                amount(spent(summary.expectedPayments), color: ThemeTint.peach.solid(scheme))
+            }
+            Divider()
+                .gridCellUnsizedAxes(.horizontal)
+            GridRow {
+                rowTitle(t.summaryNet)
+                amount(t.money(summary.net), color: netColor(summary.net), weight: .heavy)
+                amount(t.money(summary.expectedNet), color: netColor(summary.expectedNet), weight: .heavy)
+            }
+        }
+        .padding(.vertical, 6)
+    }
+
+    private func columnTitle(_ text: String) -> some View {
+        Text(text)
+            .sectionTitle()
+            .lineLimit(1)
+    }
+
+    private func rowTitle(_ text: String) -> some View {
+        Text(text)
+            .appFont(.body, weight: .semibold)
+            .gridColumnAlignment(.leading)
+    }
+
+    private func amount(_ text: String, color: Color, weight: Font.Weight = .bold) -> some View {
+        Text(text)
+            .appFont(.title3, weight: weight)
+            .monospacedDigit()
+            .foregroundStyle(color)
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
+    }
+
+    /// "−$500.00"; sin signo si es 0.
+    private func spent(_ value: Double) -> String {
+        value > 0 ? "−" + t.money(value) : t.money(0)
+    }
+
+    private func netColor(_ value: Double) -> Color {
+        value < 0 ? .red : .primary
     }
 }
 

@@ -54,6 +54,17 @@ extension DebtKind {
     }
 }
 
+extension HomeSection {
+    var tint: ThemeTint {
+        switch self {
+        case .accounts: return .mint
+        case .investments: return .teal
+        case .debts: return .peach
+        case .assets: return .sand
+        }
+    }
+}
+
 extension MovementKind {
     var tint: ThemeTint {
         switch self {
@@ -190,6 +201,85 @@ extension View {
     }
 }
 
+extension View {
+    /// Botón secundario de vidrio en forma de píldora.
+    @ViewBuilder
+    func glassButton() -> some View {
+        if #available(iOS 26.0, macOS 26.0, *) {
+            buttonStyle(.glass)
+        } else {
+            buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+        }
+    }
+}
+
+/// Barra de cada pestaña: botones a los lados y, en medio, el total de la pantalla. Si no cabe en
+/// una fila (iPhone o letra grande), el total va arriba y los botones abajo.
+struct TabHeader<Leading: View, Trailing: View>: View {
+    @Environment(\.l10n) private var t
+    @Environment(\.textScale) private var scale
+    let caption: String
+    let amount: Double
+    let leading: Leading
+    let trailing: Trailing
+
+    init(
+        caption: String,
+        amount: Double,
+        @ViewBuilder leading: () -> Leading,
+        @ViewBuilder trailing: () -> Trailing
+    ) {
+        self.caption = caption
+        self.amount = amount
+        self.leading = leading()
+        self.trailing = trailing()
+    }
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) {
+                leading
+                Spacer(minLength: 12)
+                center
+                Spacer(minLength: 12)
+                trailing
+            }
+            VStack(spacing: 12) {
+                center
+                HStack(spacing: 10) {
+                    leading
+                    Spacer(minLength: 8)
+                    trailing
+                }
+            }
+            VStack(spacing: 10) {
+                center
+                HStack(spacing: 10) { leading }
+                HStack(spacing: 10) { trailing }
+            }
+        }
+        .padding(14 * scale)
+        .glassCard(cornerRadius: 24)
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .padding(.bottom, 6)
+    }
+
+    private var center: some View {
+        VStack(spacing: 2) {
+            Text(caption)
+                .sectionTitle()
+                .lineLimit(1)
+            Text(t.money(amount))
+                .font(.system(size: 22 * scale, weight: .heavy, design: .rounded))
+                .monospacedDigit()
+                .lineLimit(1)
+                .fixedSize()
+        }
+    }
+}
+
 /// Las tarjetas se encogen un poco al tocarlas, con rebote.
 struct PressableStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
@@ -319,6 +409,56 @@ private struct WaveShape: Shape {
         if closed {
             path.addLine(to: CGPoint(x: w, y: h))
             path.addLine(to: CGPoint(x: 0, y: h))
+            path.closeSubpath()
+        }
+        return path
+    }
+}
+
+/// Línea de saldo que sube y baja con `values`; si todos son iguales, queda recta a media altura.
+struct Sparkline: View {
+    let values: [Double]
+    var color: Color = .white
+
+    var body: some View {
+        ZStack {
+            SparklineShape(values: values, closed: true)
+                .fill(LinearGradient(colors: [color.opacity(0.28), color.opacity(0)], startPoint: .top, endPoint: .bottom))
+            SparklineShape(values: values, closed: false)
+                .stroke(color, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+private struct SparklineShape: Shape {
+    let values: [Double]
+    let closed: Bool
+
+    func path(in rect: CGRect) -> Path {
+        guard values.count > 1 else { return Path() }
+        let low = values.min() ?? 0
+        let range = (values.max() ?? 0) - low
+        // Margen para que el trazo no se corte arriba ni abajo.
+        let inset: CGFloat = 3
+        let points = values.enumerated().map { index, value in
+            CGPoint(
+                x: rect.width * CGFloat(index) / CGFloat(values.count - 1),
+                y: range > 0 ? inset + (rect.height - 2 * inset) * CGFloat(1 - (value - low) / range) : rect.height / 2
+            )
+        }
+
+        var path = Path()
+        path.move(to: points[0])
+        // Curvas suaves que pasan por el punto medio entre cada par de puntos.
+        for i in 1..<points.count {
+            let mid = CGPoint(x: (points[i - 1].x + points[i].x) / 2, y: (points[i - 1].y + points[i].y) / 2)
+            path.addQuadCurve(to: mid, control: points[i - 1])
+        }
+        path.addLine(to: points[points.count - 1])
+        if closed {
+            path.addLine(to: CGPoint(x: rect.width, y: rect.height))
+            path.addLine(to: CGPoint(x: 0, y: rect.height))
             path.closeSubpath()
         }
         return path

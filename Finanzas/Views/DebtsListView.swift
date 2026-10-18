@@ -40,11 +40,6 @@ struct DebtsListView: View {
                                 }
                             }
                         }
-                        NavigationLink {
-                            PayoffView()
-                        } label: {
-                            Label(t.payoffQuestion, systemImage: "calendar.badge.clock")
-                        }
                     }
 
                     ForEach(DebtKind.allCases) { kind in
@@ -72,18 +67,30 @@ struct DebtsListView: View {
                 }
             }
         }
-        .screenBackground()
-        .navigationTitle(t.debts)
-        .hideAmountsToolbar()
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+        .safeAreaInset(edge: .top) {
+            TabHeader(caption: t.totalDebt, amount: totalDebt) {
+                if !debts.isEmpty {
+                    NavigationLink {
+                        PayoffView()
+                    } label: {
+                        Label(t.timeToPayoff, systemImage: "calendar.badge.clock")
+                    }
+                    .glassButton()
+                }
+            } trailing: {
                 Menu {
                     addMenuItems
                 } label: {
                     Label(t.add, systemImage: "plus")
                 }
+                .menuStyle(.button)
+                .prominentButton()
+                .fixedSize()
             }
         }
+        .screenBackground()
+        .navigationTitle(t.debts)
+        .hideAmountsToolbar()
         .sheet(item: $newKind) { kind in
             DebtFormView(kind: kind)
         }

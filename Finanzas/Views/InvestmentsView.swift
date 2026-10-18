@@ -46,11 +46,16 @@ struct InvestmentsView: View {
                 summary
             }
         }
-        .screenBackground()
-        .navigationTitle(t.investments)
-        .hideAmountsToolbar()
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+        .safeAreaInset(edge: .top) {
+            TabHeader(caption: t.totalValue, amount: investments.totalBalance) {
+                Button {
+                    newItem = .transfer
+                } label: {
+                    Label(t.moveMoney, systemImage: MovementKind.transfer.systemImage)
+                }
+                .glassButton()
+                .disabled(investments.isEmpty)
+            } trailing: {
                 Menu {
                     Button {
                         newItem = .investment
@@ -63,12 +68,6 @@ struct InvestmentsView: View {
                         Label(t.goal, systemImage: AccountKind.goal.systemImage)
                     }
                     Button {
-                        newItem = .transfer
-                    } label: {
-                        Label(t.moveMoney, systemImage: MovementKind.transfer.systemImage)
-                    }
-                    .disabled(investments.isEmpty)
-                    Button {
                         newItem = .contribution
                     } label: {
                         Label(t.recurringContribution, systemImage: "repeat")
@@ -77,8 +76,14 @@ struct InvestmentsView: View {
                 } label: {
                     Label(t.add, systemImage: "plus")
                 }
+                .menuStyle(.button)
+                .prominentButton()
+                .fixedSize()
             }
         }
+        .screenBackground()
+        .navigationTitle(t.investments)
+        .hideAmountsToolbar()
         .sheet(item: $newItem) { item in
             switch item {
             case .investment: AccountFormView(kind: .investment)
