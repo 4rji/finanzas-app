@@ -31,7 +31,7 @@ struct DashboardView: View {
     private var investments: [Account] { allAccounts.investments }
 
     private var totalDebt: Double {
-        debts.reduce(0) { $0 + $1.totalOwed }
+        debts.countedTotal
     }
 
     var body: some View {

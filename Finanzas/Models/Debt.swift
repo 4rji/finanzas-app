@@ -19,6 +19,8 @@ final class Debt {
     var paymentDueDay: Int = 1
     var creditLimit: Double = 0
     var insuranceAmount: Double = 0
+    /// Fuera de la deuda total (por ejemplo, la hipoteca). Se sigue mostrando en su propia sección.
+    var excludedFromTotal: Bool = false
 
     @Relationship(deleteRule: .cascade, inverse: \InstallmentPlan.debt)
     var plans: [InstallmentPlan]? = []
@@ -138,6 +140,11 @@ final class Debt {
 }
 
 extension Sequence where Element == Debt {
+    /// Deuda total, sin las que están fuera del total.
+    var countedTotal: Double {
+        filter { !$0.excludedFromTotal }.reduce(0) { $0 + $1.totalOwed }
+    }
+
     /// Uso de crédito de todas las tarjetas que tienen límite. nil si ninguna lo tiene.
     var creditUsage: (used: Double, limit: Double)? {
         let cards = filter { $0.kind == .creditCard && $0.creditLimit > 0 }

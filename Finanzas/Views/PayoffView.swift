@@ -123,7 +123,7 @@ struct PayoffView: View {
     private func summary(_ items: [PayoffItem], compact: Bool) -> some View {
         let layout = compact ? AnyLayout(VStackLayout(spacing: 12)) : AnyLayout(HStackLayout(spacing: 16))
         return layout {
-            PayoffMetric(title: t.totalDebt, value: t.money(debts.reduce(0) { $0 + $1.totalOwed }), systemImage: "creditcard", tint: .peach)
+            PayoffMetric(title: t.totalDebt, value: t.money(debts.countedTotal), systemImage: "creditcard", tint: .peach)
             PayoffMetric(title: t.monthlyPayments, value: t.perMonth(items.reduce(0) { $0 + $1.estimate.payment }), systemImage: "arrow.triangle.2.circlepath", tint: .mint)
         }
     }

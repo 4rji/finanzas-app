@@ -132,20 +132,15 @@ struct AccountCardCarousel: View {
         let shape = RoundedRectangle(cornerRadius: 28, style: .continuous)
 
         return VStack(alignment: .leading, spacing: 12 * scale) {
-            HStack(alignment: .top, spacing: 12) {
-                Text(account.name)
-                    .font(.system(size: 14 * scale, weight: .bold, design: .rounded))
-                    .textCase(.uppercase)
-                    .tracking(1.4)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.75)
-                Spacer(minLength: 0)
-                if let currency = t.locale.currency?.identifier {
-                    Text(currency)
-                        .appFont(.subheadline, weight: .bold)
-                        .padding(.top, 2)
-                }
-            }
+            // A la derecha, para que se vea en las tarjetas que se asoman detrás.
+            Text(account.name)
+                .font(.system(size: 14 * scale, weight: .bold, design: .rounded))
+                .textCase(.uppercase)
+                .tracking(1.4)
+                .lineLimit(2)
+                .minimumScaleFactor(0.75)
+                .multilineTextAlignment(.trailing)
+                .frame(maxWidth: .infinity, alignment: .trailing)
             Spacer(minLength: 12)
             VStack(alignment: .leading, spacing: 4 * scale) {
                 Text(t.balance)

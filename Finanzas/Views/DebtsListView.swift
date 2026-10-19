@@ -5,10 +5,15 @@ struct DebtsListView: View {
     @Environment(\.l10n) private var t
     @Environment(\.modelContext) private var context
     @Query(sort: \Debt.createdAt) private var debts: [Debt]
+    @AppStorage("debts.excludedCollapsed") private var excludedCollapsed = false
     @State private var newKind: DebtKind?
 
     private var totalDebt: Double {
-        debts.reduce(0) { $0 + $1.totalOwed }
+        debts.countedTotal
+    }
+
+    private var excluded: [Debt] {
+        debts.filter(\.excludedFromTotal)
     }
 
     var body: some View {
@@ -43,24 +48,40 @@ struct DebtsListView: View {
                     }
 
                     ForEach(DebtKind.allCases) { kind in
-                        let items = debts.filter { $0.kind == kind }
+                        let items = debts.filter { $0.kind == kind && !$0.excludedFromTotal }
                         if !items.isEmpty {
                             Section {
-                                ForEach(items) { debt in
-                                    NavigationLink {
-                                        DebtDetailView(debt: debt)
-                                    } label: {
-                                        DebtRow(debt: debt)
-                                    }
-                                    .contextMenu {
-                                        Button(t.delete, role: .destructive) {
-                                            delete(debt)
-                                        }
-                                    }
-                                }
+                                ForEach(items) { debtLink($0) }
                             } header: {
                                 Text(t.kindPlural(kind))
                                     .sectionTitle()
+                            }
+                        }
+                    }
+
+                    if !excluded.isEmpty {
+                        Section {
+                            if !excludedCollapsed {
+                                ForEach(excluded) { debtLink($0) }
+                            }
+                        } header: {
+                            Button {
+                                withAnimation { excludedCollapsed.toggle() }
+                            } label: {
+                                HStack {
+                                    Text(t.excludedFromTotal + " · \(excluded.count)")
+                                        .sectionTitle()
+                                    Spacer()
+                                    Image(systemName: "chevron.down")
+                                        .rotationEffect(.degrees(excludedCollapsed ? -90 : 0))
+                                        .foregroundStyle(.secondary)
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        } footer: {
+                            if !excludedCollapsed {
+                                Text(t.excludedFromTotalFooter)
                             }
                         }
                     }
@@ -105,6 +126,45 @@ struct DebtsListView: View {
                 Label(t.kindName(kind), systemImage: kind.systemImage)
             }
         }
+    }
+
+    private func debtLink(_ debt: Debt) -> some View {
+        NavigationLink {
+            DebtDetailView(debt: debt)
+        } label: {
+            DebtRow(debt: debt)
+        }
+        .contextMenu {
+            Button {
+                toggleExcluded(debt)
+            } label: {
+                Label(excludeLabel(debt), systemImage: excludeImage(debt))
+            }
+            Button(t.delete, role: .destructive) {
+                delete(debt)
+            }
+        }
+        .swipeActions(edge: .leading) {
+            Button {
+                toggleExcluded(debt)
+            } label: {
+                Label(excludeLabel(debt), systemImage: excludeImage(debt))
+            }
+            .tint(.gray)
+        }
+    }
+
+    private func excludeLabel(_ debt: Debt) -> String {
+        debt.excludedFromTotal ? t.includeInTotal : t.excludeFromTotal
+    }
+
+    private func excludeImage(_ debt: Debt) -> String {
+        debt.excludedFromTotal ? "plus.circle" : "minus.circle"
+    }
+
+    private func toggleExcluded(_ debt: Debt) {
+        withAnimation { debt.excludedFromTotal.toggle() }
+        try? context.save()
     }
 
     private func delete(_ debt: Debt) {

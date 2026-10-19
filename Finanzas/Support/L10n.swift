@@ -129,6 +129,12 @@ struct L10n {
         pick("Use the + button to add a credit card, mortgage, auto loan or student loan.",
              "Usa el botón + para agregar una tarjeta, hipoteca, préstamo de auto o préstamo estudiantil.")
     }
+    var excludeFromTotal: String { pick("Leave out of total", "Excluir del total") }
+    var includeInTotal: String { pick("Count in total", "Incluir en el total") }
+    var excludedFromTotal: String { pick("Not in total", "Fuera del total") }
+    var excludedFromTotalFooter: String {
+        pick("These debts don't count toward the total debt.", "Estas deudas no se suman a la deuda total.")
+    }
 
     func kindName(_ kind: DebtKind) -> String {
         switch kind {
