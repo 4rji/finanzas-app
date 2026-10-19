@@ -89,23 +89,20 @@ extension Color {
 
 // MARK: - Fondo
 
-/// Fondo de todas las pantallas: neutros suaves con un matiz verde discreto.
+/// Fondo de todas las pantallas: neutros suaves con el matiz elegido en Configuración.
 struct AppBackground: View {
     @Environment(\.colorScheme) private var scheme
+    @AppStorage(BackgroundStyle.storageKey) private var style: BackgroundStyle = .mint
 
     var body: some View {
-        let dark = scheme == .dark
-
         ZStack {
             LinearGradient(
-                colors: dark
-                    ? [Color(hex: 0x101613), Color(hex: 0x17211C)]
-                    : [Color(hex: 0xF6F8F5), Color(hex: 0xEEF3EF)],
+                colors: style.colors(scheme),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
             RadialGradient(
-                colors: [Color(hex: dark ? 0x386F56 : 0xA8CCB5, opacity: dark ? 0.14 : 0.1), .clear],
+                colors: [style.glow(scheme).opacity(0.16), .clear],
                 center: .topTrailing,
                 startRadius: 0,
                 endRadius: 760

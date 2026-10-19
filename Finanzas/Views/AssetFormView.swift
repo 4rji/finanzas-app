@@ -41,8 +41,15 @@ struct AssetFormView: View {
             target = Asset(name: trimmedName)
             context.insert(target)
         }
+        let value = parseDecimal(valueText)
+        let change = value - target.value
         target.name = trimmedName
-        target.value = parseDecimal(valueText)
+        target.value = value
+        if change != 0 {
+            let record = AssetChange(amount: change)
+            context.insert(record)
+            record.asset = target
+        }
         try? context.save()
     }
 

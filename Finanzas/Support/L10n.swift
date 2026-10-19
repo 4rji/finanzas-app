@@ -75,6 +75,19 @@ struct L10n {
     var languageHint: String { pick("App text", "Textos de la app") }
     var textSizeHint: String { pick("Throughout the app", "En toda la app") }
     var appearanceHint: String { pick("Light, dark or like the system", "Claro, oscuro o como el sistema") }
+    var backgroundTitle: String { pick("Background", "Fondo") }
+    var backgroundHint: String { pick("Color behind every screen", "Color detrás de todas las pantallas") }
+
+    func backgroundName(_ style: BackgroundStyle) -> String {
+        switch style {
+        case .mint: return pick("Green", "Verde")
+        case .ocean: return pick("Blue", "Azul")
+        case .sand: return pick("Sand", "Arena")
+        case .lavender: return pick("Lavender", "Lavanda")
+        case .rose: return pick("Rose", "Rosa")
+        case .graphite: return pick("Gray", "Gris")
+        }
+    }
     var hideAmountsHint: String { pick("Shows ***** instead of amounts", "Muestra ***** en lugar de los montos") }
     var shownOnHome: String { pick("Shown on home", "Se muestra en inicio") }
     var hiddenFromHome: String { pick("Hidden", "Oculta") }

@@ -10,6 +10,7 @@ struct SettingsView: View {
     @AppStorage(AppLanguage.storageKey) private var language: AppLanguage = .deviceDefault
     @AppStorage(TextSize.storageKey) private var textSize: TextSize = .large
     @AppStorage(AppAppearance.storageKey) private var appearance: AppAppearance = .system
+    @AppStorage(BackgroundStyle.storageKey) private var background: BackgroundStyle = .mint
     @AppStorage(L10n.hidesAmountsKey) private var hidesAmounts = false
     @AppStorage(HomeSection.accounts.storageKey) private var showAccounts = true
     @AppStorage(HomeSection.investments.storageKey) private var showInvestments = true
@@ -61,6 +62,27 @@ struct SettingsView: View {
                                 }
                                 .accessibilityLabel(t.appearanceName(option))
                                 .help(t.appearanceName(option))
+                            }
+                        }
+                    }
+
+                    SettingsCard(systemImage: "paintpalette", tint: .peach, title: t.backgroundTitle, subtitle: t.backgroundHint) {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 76 * scale), spacing: 10)], spacing: 10) {
+                            ForEach(BackgroundStyle.allCases) { option in
+                                SettingsChoice(isSelected: background == option, tint: .mint) {
+                                    background = option
+                                } label: {
+                                    VStack(spacing: 7) {
+                                        BackgroundSwatch(style: option)
+                                            .frame(height: 30 * scale)
+                                        Text(t.backgroundName(option))
+                                            .appFont(.subheadline, weight: .semibold)
+                                            .lineLimit(1)
+                                            .minimumScaleFactor(0.8)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                }
+                                .accessibilityLabel(t.backgroundName(option))
                             }
                         }
                     }
@@ -288,6 +310,7 @@ struct SettingsView: View {
         let language: AppLanguage
         let textSize: TextSize
         let appearance: AppAppearance
+        let background: BackgroundStyle
         let hidesAmounts: Bool
         let shown: [HomeSection: Bool]
         let orderRaw: String
@@ -296,6 +319,7 @@ struct SettingsView: View {
             language = view.language
             textSize = view.textSize
             appearance = view.appearance
+            background = view.background
             hidesAmounts = view.hidesAmounts
             shown = Dictionary(uniqueKeysWithValues: HomeSection.allCases.map { ($0, view.isShown($0).wrappedValue) })
             orderRaw = view.orderRaw
@@ -305,6 +329,7 @@ struct SettingsView: View {
             view.language = language
             view.textSize = textSize
             view.appearance = appearance
+            view.background = background
             view.hidesAmounts = hidesAmounts
             for (section, isOn) in shown {
                 view.isShown(section).wrappedValue = isOn
@@ -460,6 +485,23 @@ private struct SettingsChoice<Label: View>: View {
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+/// Muestra chica de un fondo, con su color más intenso para que se distinga.
+private struct BackgroundSwatch: View {
+    @Environment(\.colorScheme) private var scheme
+    let style: BackgroundStyle
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 9, style: .continuous)
+        ZStack {
+            LinearGradient(colors: style.colors(scheme), startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: [style.glow(scheme), style.glow(scheme).opacity(0.25)], startPoint: .topTrailing, endPoint: .bottomLeading)
+        }
+        .clipShape(shape)
+        .overlay(shape.strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
+        .accessibilityHidden(true)
     }
 }
 

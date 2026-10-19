@@ -20,6 +20,7 @@ struct DashboardView: View {
     @Query private var incomes: [RecurringIncome]
     @Query private var movements: [Movement]
     @Query(sort: \Asset.createdAt) private var assets: [Asset]
+    @Query private var assetChanges: [AssetChange]
 
     @State private var showingSettings = false
     /// Tarjeta del carrusel que está al inicio. Arranca en la última que se eligió.
@@ -315,7 +316,7 @@ struct DashboardView: View {
                 compact: compact,
                 history: BalanceHistory.points(
                     current: accounts.totalBalance,
-                    changes: BalanceHistory.checkingChanges(movements)
+                    changes: BalanceHistory.accountChanges(movements) { $0 == .checking }
                 )
             )
         }
@@ -339,7 +340,11 @@ struct DashboardView: View {
                     caption: t.totalValue,
                     subtitle: investmentsSubtitle,
                     tint: section.tint,
-                    compact: compact
+                    compact: compact,
+                    history: BalanceHistory.points(
+                        current: investments.totalBalance,
+                        changes: BalanceHistory.accountChanges(movements) { $0.isSavings }
+                    )
                 )
             }
             .buttonStyle(PressableStyle())
@@ -355,7 +360,11 @@ struct DashboardView: View {
                     caption: t.totalDebt,
                     subtitle: debtsSubtitle,
                     tint: section.tint,
-                    compact: compact
+                    compact: compact,
+                    history: BalanceHistory.points(
+                        current: totalDebt,
+                        changes: BalanceHistory.debtChanges(movements)
+                    )
                 )
             }
             .buttonStyle(PressableStyle())
@@ -371,7 +380,11 @@ struct DashboardView: View {
                     caption: t.totalValue,
                     subtitle: assetsSubtitle,
                     tint: section.tint,
-                    compact: compact
+                    compact: compact,
+                    history: BalanceHistory.points(
+                        current: assets.reduce(0) { $0 + $1.value },
+                        changes: BalanceHistory.assetChanges(assetChanges)
+                    )
                 )
             }
             .buttonStyle(PressableStyle())
@@ -410,8 +423,7 @@ struct DashboardView: View {
     }
 }
 
-/// Una misma jerarquía visual para todas las categorías. Solo las cuentas muestran una gráfica,
-/// construida con su historial real; las otras categorías llevan un símbolo decorativo.
+/// Una misma jerarquía visual para todas las categorías, cada una con la línea de su historial real.
 private struct DashboardCard: View {
     @Environment(\.l10n) private var t
     @Environment(\.textScale) private var scale
@@ -423,7 +435,7 @@ private struct DashboardCard: View {
     let subtitle: String
     let tint: ThemeTint
     let compact: Bool
-    var history: [Double]? = nil
+    let history: [Double]
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: compact ? 22 : 28, style: .continuous)
@@ -469,17 +481,9 @@ private struct DashboardCard: View {
                 .lineLimit(compact ? 1 : 2)
                 .padding(.top, 7 * scale)
             Spacer(minLength: compact ? 14 * scale : 18 * scale)
-            if let history {
-                Sparkline(values: history, color: .white.opacity(0.65))
-                    .frame(height: (compact ? 20 : 30) * scale)
-                    .accessibilityHidden(true)
-            } else {
-                Capsule()
-                    .fill(.white.opacity(0.3))
-                    .frame(width: 32 * scale, height: 3)
-                    .frame(height: (compact ? 20 : 30) * scale, alignment: .bottomLeading)
-                    .accessibilityHidden(true)
-            }
+            Sparkline(values: history, color: .white.opacity(0.65))
+                .frame(height: (compact ? 20 : 30) * scale)
+                .accessibilityHidden(true)
         }
         .foregroundStyle(.white)
         .padding((compact ? 16 : 24) * scale)
@@ -491,14 +495,6 @@ private struct DashboardCard: View {
                     .stroke(.white.opacity(0.06), lineWidth: compact ? 28 : 48)
                     .frame(width: compact ? 150 : 260, height: compact ? 150 : 260)
                     .offset(x: compact ? 65 : 90, y: compact ? 70 : 130)
-                if history == nil {
-                    Image(systemName: systemImage)
-                        .font(.system(size: (compact ? 72 : 128) * scale, weight: .ultraLight))
-                        .foregroundStyle(.white.opacity(0.06))
-                        .rotationEffect(.degrees(-15))
-                        .offset(x: 12, y: 14)
-                        .accessibilityHidden(true)
-                }
             }
         }
         .clipShape(shape)
