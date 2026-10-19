@@ -143,6 +143,21 @@ struct L10n {
              "Usa el botón + para agregar una tarjeta, hipoteca, préstamo de auto o préstamo estudiantil.")
     }
     var excludeFromTotal: String { pick("Leave out of total", "Excluir del total") }
+    var byCategory: String { pick("By category", "Por categoría") }
+    var customTotals: String { pick("My totals", "Mis totales") }
+    var customTotal: String { pick("Custom total", "Total personalizado") }
+    var addCustomTotal: String { pick("Add a total", "Agregar un total") }
+    var customTotalsFooter: String {
+        pick("Add up only the debts you choose, like the revolving ones or a few you want to keep an eye on.",
+             "Suma solo las deudas que elijas, como las revolventes o algunas que quieras vigilar.")
+    }
+    var customTotalPlaceholder: String { pick("e.g. Revolving", "ej. Revolventes") }
+    var debtsToAdd: String { pick("Debts it adds up", "Deudas que suma") }
+    var noDebtsChosen: String { pick("No debts chosen", "Sin deudas elegidas") }
+
+    func sumOf(_ value: Double) -> String {
+        pick("Total: ", "Suma: ") + money(value)
+    }
     var includeInTotal: String { pick("Count in total", "Incluir en el total") }
     var excludedFromTotal: String { pick("Not in total", "Fuera del total") }
     var excludedFromTotalFooter: String {

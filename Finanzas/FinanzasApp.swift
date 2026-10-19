@@ -15,7 +15,7 @@ struct FinanzasApp: App {
             // 2. Cambiar `.none` por `.automatic` aquí abajo.
             container = try ModelContainer(
                 for: Debt.self, InstallmentPlan.self, Account.self, RecurringIncome.self, RecurringPayment.self,
-                Movement.self, Asset.self, AssetChange.self,
+                Movement.self, Asset.self, AssetChange.self, DebtGroup.self,
                 configurations: ModelConfiguration("Finanzas", cloudKitDatabase: .none)
             )
         } catch {

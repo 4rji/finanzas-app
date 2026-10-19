@@ -6,7 +6,10 @@ struct DebtsListView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \Debt.createdAt) private var debts: [Debt]
     @AppStorage("debts.excludedCollapsed") private var excludedCollapsed = false
+    @Query(sort: \DebtGroup.createdAt) private var groups: [DebtGroup]
     @State private var newKind: DebtKind?
+    @State private var addingGroup = false
+    @State private var editingGroup: DebtGroup?
 
     private var totalDebt: Double {
         debts.countedTotal
@@ -14,6 +17,14 @@ struct DebtsListView: View {
 
     private var excluded: [Debt] {
         debts.filter(\.excludedFromTotal)
+    }
+
+    /// Total de cada categoría con deudas que se suman, en el orden de `DebtKind`.
+    private var categoryTotals: [CategoryTotal] {
+        DebtKind.allCases.compactMap { kind in
+            let items = debts.filter { $0.kind == kind && !$0.excludedFromTotal }
+            return items.isEmpty ? nil : CategoryTotal(kind: kind, total: items.countedTotal, count: items.count)
+        }
     }
 
     var body: some View {
@@ -30,19 +41,10 @@ struct DebtsListView: View {
                 }
             } else {
                 ThemedForm {
-                    ForEach(DebtKind.allCases) { kind in
-                        let items = debts.filter { $0.kind == kind && !$0.excludedFromTotal }
-                        if !items.isEmpty {
-                            Section {
-                                ForEach(items) { debtLink($0) }
-                            } header: {
-                                Text(t.kindPlural(kind))
-                                    .sectionTitle()
-                            }
-                        }
-                    }
-
                     Section {
+                        ForEach(categoryTotals) { item in
+                            CategoryTotalRow(item: item, share: totalDebt > 0 ? item.total / totalDebt : 0)
+                        }
                         LabeledContent(t.totalDebt) {
                             Text(t.money(totalDebt))
                                 .fontWeight(.semibold)
@@ -55,6 +57,48 @@ struct DebtsListView: View {
                                         .foregroundStyle(.secondary)
                                     UsageText(fraction: usage.used / usage.limit)
                                 }
+                            }
+                        }
+                    } header: {
+                        Text(t.byCategory)
+                            .sectionTitle()
+                    }
+
+                    Section {
+                        ForEach(groups) { group in
+                            Button {
+                                editingGroup = group
+                            } label: {
+                                DebtGroupRow(group: group)
+                            }
+                            .buttonStyle(.plain)
+                            .contextMenu {
+                                Button(t.edit) { editingGroup = group }
+                                Button(t.delete, role: .destructive) { delete(group) }
+                            }
+                        }
+                        Button {
+                            addingGroup = true
+                        } label: {
+                            Label(t.addCustomTotal, systemImage: "plus")
+                        }
+                    } header: {
+                        Text(t.customTotals)
+                            .sectionTitle()
+                    } footer: {
+                        Text(t.customTotalsFooter)
+                            .appFont(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    ForEach(DebtKind.allCases) { kind in
+                        let items = debts.filter { $0.kind == kind && !$0.excludedFromTotal }
+                        if !items.isEmpty {
+                            Section {
+                                ForEach(items) { debtLink($0) }
+                            } header: {
+                                Text(t.kindPlural(kind))
+                                    .sectionTitle()
                             }
                         }
                     }
@@ -116,6 +160,12 @@ struct DebtsListView: View {
         .sheet(item: $newKind) { kind in
             DebtFormView(kind: kind)
         }
+        .sheet(isPresented: $addingGroup) {
+            DebtGroupFormView()
+        }
+        .sheet(item: $editingGroup) { group in
+            DebtGroupFormView(group: group)
+        }
     }
 
     @ViewBuilder
@@ -172,6 +222,81 @@ struct DebtsListView: View {
     private func delete(_ debt: Debt) {
         context.delete(debt)
         try? context.save()
+    }
+
+    private func delete(_ group: DebtGroup) {
+        context.delete(group)
+        try? context.save()
+    }
+}
+
+private struct CategoryTotal: Identifiable {
+    let kind: DebtKind
+    let total: Double
+    let count: Int
+
+    var id: DebtKind { kind }
+}
+
+/// Total de una categoría, con la parte de la deuda total que representa.
+private struct CategoryTotalRow: View {
+    @Environment(\.l10n) private var t
+    @Environment(\.colorScheme) private var scheme
+    let item: CategoryTotal
+    let share: Double
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                IconTile(systemImage: item.kind.systemImage, tint: item.kind.tint)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(t.kindPlural(item.kind))
+                        .appFont(.body, weight: .semibold)
+                    Text(t.debtCount(item.count) + " · " + t.percent((share * 100).rounded()))
+                        .appFont(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text(t.money(item.total))
+                    .appFont(.title3, weight: .bold)
+                    .monospacedDigit()
+            }
+            ProgressView(value: min(max(share, 0), 1))
+                .tint(item.kind.tint.solid(scheme))
+                .accessibilityHidden(true)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+/// Total personalizado con las deudas que suma.
+private struct DebtGroupRow: View {
+    @Environment(\.l10n) private var t
+    let group: DebtGroup
+
+    var body: some View {
+        HStack(spacing: 12) {
+            IconTile(systemImage: "square.stack.3d.up", tint: .mint)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(group.name)
+                    .appFont(.body, weight: .semibold)
+                Text(names)
+                    .appFont(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer()
+            Text(t.money(group.total))
+                .appFont(.title3, weight: .bold)
+                .monospacedDigit()
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+    }
+
+    private var names: String {
+        let names = group.sortedDebts.map(\.name)
+        return names.isEmpty ? t.noDebtsChosen : names.joined(separator: ", ")
     }
 }
 

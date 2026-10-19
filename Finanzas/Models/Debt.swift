@@ -32,6 +32,9 @@ final class Debt {
     @Relationship(deleteRule: .cascade, inverse: \RecurringPayment.debt)
     var autoPayments: [RecurringPayment]? = []
 
+    /// Totales personalizados en los que aparece (ver `DebtGroup`).
+    var groups: [DebtGroup]? = []
+
     init(name: String, kind: DebtKind) {
         self.name = name
         self.kindRaw = kind.rawValue
