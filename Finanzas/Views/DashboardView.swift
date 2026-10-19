@@ -363,7 +363,7 @@ struct DashboardView: View {
                     compact: compact,
                     history: BalanceHistory.points(
                         current: totalDebt,
-                        changes: BalanceHistory.debtChanges(movements)
+                        changes: BalanceHistory.debtEvents(for: debts.filter { !$0.excludedFromTotal }).map(\.change)
                     )
                 )
             }

@@ -154,6 +154,40 @@ struct L10n {
     var customTotalPlaceholder: String { pick("e.g. Revolving", "ej. Revolventes") }
     var debtsToAdd: String { pick("Debts it adds up", "Deudas que suma") }
     var noDebtsChosen: String { pick("No debts chosen", "Sin deudas elegidas") }
+    var ofTotalDebt: String { pick("Of total debt", "De la deuda total") }
+    var chooseWhatCounts: String { pick("Choose what counts", "Elegir qué se suma") }
+    var chooseTotalTitle: String { pick("What counts toward total debt", "Qué se suma a la deuda total") }
+    var chooseTotalFooter: String {
+        pick("Turn off a whole category or single debts. The ones you turn off move to “Not in total”: you still see them, but they're not added up.",
+             "Apaga una categoría completa o deudas sueltas. Las que apagues pasan a “Fuera del total”: se siguen viendo, pero no se suman.")
+    }
+    var debtHistoryFooter: String {
+        pick("Approximate: it goes down with each payment and changes when you edit a balance or add or remove a purchase on installments.",
+             "Aproximado: baja con cada pago y cambia cuando editas un saldo o agregas o quitas una compra a meses.")
+    }
+
+    func historyRangeName(_ range: HistoryRange) -> String {
+        switch range {
+        case .threeMonths: return pick("3M", "3M")
+        case .sixMonths: return pick("6M", "6M")
+        case .year: return pick("1Y", "1A")
+        case .all: return pick("All", "Todo")
+        }
+    }
+
+    /// "Bajó $1,200 en 6 meses" / "Down $1,200 in 6 months".
+    func debtChange(_ value: Double, range: HistoryRange) -> String {
+        let period: String
+        switch range {
+        case .threeMonths: period = pick("in 3 months", "en 3 meses")
+        case .sixMonths: period = pick("in 6 months", "en 6 meses")
+        case .year: period = pick("in 1 year", "en 1 año")
+        case .all: period = pick("since the start", "desde el inicio")
+        }
+        if value > 0.005 { return pick("Up ", "Subió ") + money(value) + " " + period }
+        if value < -0.005 { return pick("Down ", "Bajó ") + money(-value) + " " + period }
+        return pick("No change ", "Sin cambios ") + period
+    }
 
     func sumOf(_ value: Double) -> String {
         pick("Total: ", "Suma: ") + money(value)
@@ -381,8 +415,32 @@ struct L10n {
              "Solo es una nota para saber cuánto es. No cambia el pago del préstamo ni el total.")
     }
 
-    func insuranceNote(_ value: Double) -> String {
-        pick("Insurance ", "Seguro ") + money(value) + pick(" (note)", " (nota)")
+    var insuranceFrequencyTitle: String { pick("How often", "Frecuencia") }
+
+    func insuranceFrequencyName(_ frequency: InsuranceFrequency) -> String {
+        switch frequency {
+        case .monthly: return pick("Monthly", "Mensual")
+        case .semiannual: return pick("Every 6 months", "Semestral")
+        case .annual: return pick("Yearly", "Anual")
+        }
+    }
+
+    var insuranceAutoPayToggle: String { pick("Take it from an account", "Descontar de una cuenta") }
+    var nextInsuranceCharge: String { pick("Next charge", "Próximo cobro") }
+    var insuranceAutoPayFooter: String {
+        pick("On each date it comes out of the account. It doesn't change the loan payment or the total.",
+             "En cada fecha se descuenta de la cuenta. No cambia el pago del préstamo ni el total.")
+    }
+
+    /// Nota del movimiento: "Seguro · Auto".
+    func insuranceOf(_ name: String) -> String {
+        pick("Insurance · ", "Seguro · ") + name
+    }
+
+    /// "$1,200 semestral desde Cheques · próximo 5 nov 2026".
+    func insuranceChargeSummary(amount: Double, frequency: InsuranceFrequency, account: String, next: Date) -> String {
+        money(amount) + " " + insuranceFrequencyName(frequency).lowercased(with: locale)
+            + pick(" from ", " desde ") + account + " · " + pick("next ", "próximo ") + date(next)
     }
 
     // Tiempo para liquidar
@@ -392,6 +450,28 @@ struct L10n {
     }
     var monthlyPayments: String { pick("Monthly payments", "Pagos mensuales") }
     var debtFreeApprox: String { pick("Debt-free (approx.)", "Sin deudas (aprox.)") }
+    var payoffTimeline: String { pick("When each debt ends", "Cuándo termina cada deuda") }
+
+    /// "2a 3m" / "2y 3m", para el final de las barras.
+    func durationShort(months n: Int) -> String {
+        let years = n / 12
+        let rest = n % 12
+        let y = pick("y", "a")
+        if years == 0 { return "\(rest)m" }
+        return rest == 0 ? "\(years)\(y)" : "\(years)\(y) \(rest)m"
+    }
+
+    func timelineMissing(_ n: Int) -> String {
+        if isSpanish {
+            return (n == 1 ? "1 deuda" : "\(n) deudas") + " sin fecha: falta el pago mensual o no alcanza."
+        }
+        return (n == 1 ? "1 debt" : "\(n) debts") + " with no date: the monthly payment is missing or too low."
+    }
+
+    /// "Se liquida en mar 2028" / "Done by Mar 2028".
+    func payoffBy(_ date: Date) -> String {
+        pick("Done by ", "Se liquida en ") + monthYear(date)
+    }
     var payoffFooter: String {
         pick("Approximate, with each debt's monthly payment and rate. On cards the payment covers installments first and then the balance with the highest rate; when a promo ends, the card's rate is used.",
              "Aproximado, con el pago mensual y la tasa de cada deuda. En tarjetas el pago cubre primero las mensualidades a meses y luego el saldo con la tasa más alta; al vencer una promoción se usa la tasa de la tarjeta.")
@@ -724,6 +804,18 @@ struct L10n {
     func moneyWhole(_ value: Double) -> String {
         guard !hidesAmounts else { return hiddenAmount }
         return value.formatted(.currency(code: currencyCode).precision(.fractionLength(0)).locale(locale))
+    }
+
+    /// "$12.5k" para los ejes de las gráficas.
+    func moneyCompact(_ value: Double) -> String {
+        guard !hidesAmounts else { return hiddenAmount }
+        func number(_ value: Double) -> String {
+            value.formatted(.number.precision(.fractionLength(0...1)).locale(locale))
+        }
+        let magnitude = abs(value)
+        if magnitude >= 1_000_000 { return currencySymbol + number(value / 1_000_000) + "M" }
+        if magnitude >= 1_000 { return currencySymbol + number(value / 1_000) + "k" }
+        return moneyWhole(value)
     }
 
     private var hiddenAmount: String { "*****" }

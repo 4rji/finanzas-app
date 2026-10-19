@@ -26,6 +26,12 @@ struct DebtFormView: View {
     @State private var limitText: String
     @State private var dueDay: Int
     @State private var insuranceText: String
+    @State private var insuranceFrequency: InsuranceFrequency
+
+    // Cobro automático del seguro desde una cuenta de cheques.
+    @State private var insuranceAutoPay: Bool
+    @State private var insuranceAccount: Account?
+    @State private var insuranceDate: Date
 
     // Pago automático desde una cuenta de cheques.
     @State private var autoPay: Bool
@@ -45,6 +51,12 @@ struct DebtFormView: View {
         _limitText = State(initialValue: editText(debt?.creditLimit ?? 0))
         _dueDay = State(initialValue: debt?.paymentDueDay ?? 1)
         _insuranceText = State(initialValue: editText(debt?.insuranceAmount ?? 0))
+        _insuranceFrequency = State(initialValue: debt?.insuranceFrequency ?? .monthly)
+        _insuranceAutoPay = State(initialValue: debt?.insurancePayment != nil)
+        _insuranceAccount = State(initialValue: debt?.insurancePayment?.account)
+        _insuranceDate = State(initialValue: debt?.insurancePayment?.nextPayDate
+            ?? Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: Date()))
+            ?? Date())
         _autoPay = State(initialValue: debt?.autoPayment != nil)
         _payAccount = State(initialValue: debt?.autoPayment?.account)
     }
@@ -59,11 +71,15 @@ struct DebtFormView: View {
     private var accounts: [Account] { allAccounts.checking }
     private var selectedPayAccount: Account? { payAccount ?? accounts.first }
     private var monthly: Double { parseDecimal(paymentText) }
+    private var insurance: Double { parseDecimal(insuranceText) }
+    private var selectedInsuranceAccount: Account? { insuranceAccount ?? accounts.first }
+    private var chargesInsurance: Bool { kind == .autoLoan && insuranceAutoPay }
 
     private var canSave: Bool {
         !trimmedName.isEmpty
             && (!includesPlan || planDraft.isValid)
             && (!autoPay || (monthly > 0 && selectedPayAccount != nil))
+            && (!chargesInsurance || (insurance > 0 && selectedInsuranceAccount != nil))
     }
 
     /// El calendario del pago automático se reinicia si es nuevo o si cambió el día.
@@ -167,15 +183,32 @@ struct DebtFormView: View {
                 .foregroundStyle(.secondary)
         }
 
-        // El seguro del auto es solo una nota: no entra en el pago ni en el total.
+        // El seguro del auto no entra en el pago ni en el total; puede descontarse solo de una cuenta.
         if kind == .autoLoan {
             Section {
                 DecimalField(title: t.insuranceAmount, text: $insuranceText, prefix: t.currencySymbol)
+                Picker(t.insuranceFrequencyTitle, selection: $insuranceFrequency) {
+                    ForEach(InsuranceFrequency.allCases) { frequency in
+                        Text(t.insuranceFrequencyName(frequency)).tag(frequency)
+                    }
+                }
+                if !accounts.isEmpty {
+                    Toggle(t.insuranceAutoPayToggle, isOn: $insuranceAutoPay)
+                        .checkboxStyle()
+                    if insuranceAutoPay {
+                        AccountPicker(accounts: accounts, selection: $insuranceAccount)
+                        DateField(title: t.nextInsuranceCharge, date: $insuranceDate)
+                        if insurance <= 0 {
+                            Label(t.autoPayNeedsAmount, systemImage: "exclamationmark.triangle")
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                }
             } header: {
                 Label(t.insurance, systemImage: "shield")
                     .sectionTitle()
             } footer: {
-                Text(t.insuranceFooter)
+                Text(insuranceAutoPay && !accounts.isEmpty ? t.insuranceAutoPayFooter : t.insuranceFooter)
                     .appFont(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -222,6 +255,7 @@ struct DebtFormView: View {
 
     private func save() {
         let rescheduleAutoPay = reschedulesAutoPay
+        let before = debt?.totalOwed ?? 0
         let target: Debt
         if let debt {
             target = debt
@@ -250,8 +284,32 @@ struct DebtFormView: View {
         case .mortgage, .autoLoan, .studentLoan:
             target.balance = parseDecimal(balanceText)
             if kind == .autoLoan {
-                target.insuranceAmount = parseDecimal(insuranceText)
+                target.insuranceAmount = insurance
+                target.insuranceFrequency = insuranceFrequency
             }
+        }
+        target.recordChange(from: before)
+
+        if chargesInsurance, let account = selectedInsuranceAccount, insurance > 0 {
+            let plan: RecurringPayment
+            if let existing = target.insurancePayment {
+                plan = existing
+            } else {
+                plan = RecurringPayment()
+                context.insert(plan)
+                plan.isInsurance = true
+                plan.debt = target
+            }
+            plan.account = account
+            plan.amount = insurance
+            // El calendario solo se reinicia si cambió la fecha o la frecuencia.
+            let start = Calendar.current.startOfDay(for: insuranceDate)
+            if plan.intervalMonths != insuranceFrequency.months || plan.nextPayDate != start {
+                plan.intervalMonths = insuranceFrequency.months
+                plan.reschedule(start: start)
+            }
+        } else if let existing = target.insurancePayment {
+            context.delete(existing)
         }
 
         if autoPay, let account = selectedPayAccount, monthly > 0 {

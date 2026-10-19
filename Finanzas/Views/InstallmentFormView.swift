@@ -39,6 +39,7 @@ struct InstallmentFormView: View {
     }
 
     private func save() {
+        let before = debt.totalOwed
         if let plan {
             draft.apply(to: plan)
         } else {
@@ -52,6 +53,7 @@ struct InstallmentFormView: View {
                 debt.balance = max(debt.balance - newPlan.remainingBalance(), 0)
             }
         }
+        debt.recordChange(from: before)
         try? context.save()
     }
 

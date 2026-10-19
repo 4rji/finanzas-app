@@ -7,7 +7,8 @@ import SwiftData
 ///   `monthlyPayment` = pago mensual que se hace (opcional, para estimar cuándo se liquida).
 /// - Hipoteca / préstamo de auto / estudiantil: `balance` = saldo restante, `interestRate` = tasa
 ///   anual, `monthlyPayment` = pago mensual, `paymentDueDay` = día del pago automático.
-///   Auto: `insuranceAmount` = pago del seguro, solo como nota (no cambia el pago ni el total).
+///   Auto: `insuranceAmount` = pago del seguro cada `insuranceFrequency`. No cambia el pago ni el
+///   total; si tiene `insurancePayment`, se descuenta solo de una cuenta.
 @Model
 final class Debt {
     var name: String = ""
@@ -19,6 +20,7 @@ final class Debt {
     var paymentDueDay: Int = 1
     var creditLimit: Double = 0
     var insuranceAmount: Double = 0
+    var insuranceFrequencyRaw: String = "monthly"
     /// Fuera de la deuda total (por ejemplo, la hipoteca). Se sigue mostrando en su propia sección.
     var excludedFromTotal: Bool = false
 
@@ -35,6 +37,10 @@ final class Debt {
     /// Totales personalizados en los que aparece (ver `DebtGroup`).
     var groups: [DebtGroup]? = []
 
+    /// Ediciones que cambiaron lo que se debe, para la gráfica de su categoría.
+    @Relationship(deleteRule: .cascade, inverse: \DebtChange.debt)
+    var changes: [DebtChange]? = []
+
     init(name: String, kind: DebtKind) {
         self.name = name
         self.kindRaw = kind.rawValue
@@ -44,6 +50,11 @@ final class Debt {
     var kind: DebtKind {
         get { DebtKind(rawValue: kindRaw) ?? .creditCard }
         set { kindRaw = newValue.rawValue }
+    }
+
+    var insuranceFrequency: InsuranceFrequency {
+        get { InsuranceFrequency(rawValue: insuranceFrequencyRaw) ?? .monthly }
+        set { insuranceFrequencyRaw = newValue.rawValue }
     }
 
     // MARK: Tarjeta
@@ -63,8 +74,10 @@ final class Debt {
     }
 
     func deletePlan(_ plan: InstallmentPlan) {
+        let before = totalOwed
         plans?.removeAll { $0.persistentModelID == plan.persistentModelID }
         modelContext?.delete(plan)
+        recordChange(from: before)
         try? modelContext?.save()
     }
 
@@ -114,11 +127,25 @@ final class Debt {
         kind == .creditCard ? balance + installmentsRemaining : balance
     }
 
+    /// Anota cuánto cambió `totalOwed` desde `before`, para la gráfica de su categoría.
+    func recordChange(from before: Double, date: Date = Date()) {
+        let amount = totalOwed - before
+        guard abs(amount) > 0.005, let context = modelContext else { return }
+        let change = DebtChange(amount: amount, date: date)
+        context.insert(change)
+        change.debt = self
+    }
+
     // MARK: Pagos
 
     /// Pago automático mensual desde una cuenta, si tiene.
     var autoPayment: RecurringPayment? {
-        autoPayments?.first
+        autoPayments?.first { !$0.isInsurance }
+    }
+
+    /// Cobro automático del seguro desde una cuenta, si tiene.
+    var insurancePayment: RecurringPayment? {
+        autoPayments?.first(where: \.isInsurance)
     }
 
     /// Lo más que tiene sentido pagar este mes: lo que se debe, más el interés del mes en préstamos.

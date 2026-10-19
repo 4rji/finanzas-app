@@ -36,14 +36,46 @@ enum BalanceHistory {
             .filter { $0 != 0 }
     }
 
-    /// Lo que cada pago bajó la deuda total, sin las deudas que no se suman al total. Los cargos no
-    /// quedan como movimientos, así que la línea solo baja con los pagos.
-    static func debtChanges(_ movements: [Movement], asOf now: Date = Date()) -> [Double] {
-        movements
-            .filter { $0.kind == .payment && $0.date <= now && $0.debt?.excludedFromTotal == false }
+    /// Un cambio de lo que se debe: los pagos la bajan y las ediciones o compras a meses la suben o
+    /// la bajan.
+    struct DebtEvent {
+        let date: Date
+        let change: Double
+    }
+
+    /// Cambios de lo que se debe en `debts`, del más viejo al más nuevo y sin fechas futuras. Las
+    /// mensualidades a meses bajan solas cada mes y no quedan anotadas, así que es aproximado.
+    static func debtEvents(for debts: [Debt], asOf now: Date = Date()) -> [DebtEvent] {
+        debts
+            .flatMap { debt -> [DebtEvent] in
+                let payments = (debt.payments ?? [])
+                    .filter { $0.kind == .payment }
+                    .map { DebtEvent(date: $0.date, change: -$0.appliedToDebt) }
+                let edits = (debt.changes ?? []).map { DebtEvent(date: $0.date, change: $0.amount) }
+                return payments + edits
+            }
+            .filter { $0.date <= now && $0.change != 0 }
             .sorted { $0.date < $1.date }
-            .map { -$0.appliedToDebt }
-            .filter { $0 != 0 }
+    }
+
+    /// Un punto de la gráfica: lo que se debía después de los cambios de esa fecha.
+    struct Point: Identifiable {
+        let id: Int
+        let date: Date
+        let value: Double
+    }
+
+    /// Puntos de `start` a `now` que terminan en `current`. El primero es lo que se debía al empezar.
+    static func series(current: Double, events: [DebtEvent], from start: Date, to now: Date = Date()) -> [Point] {
+        let inRange = events.filter { $0.date > start && $0.date <= now }
+        var value = current - inRange.reduce(0) { $0 + $1.change }
+        var points = [Point(id: 0, date: start, value: value)]
+        for event in inRange {
+            value += event.change
+            points.append(Point(id: points.count, date: event.date, value: value))
+        }
+        points.append(Point(id: points.count, date: now, value: current))
+        return points
     }
 
     /// Lo que cambió el valor total de los bienes cada vez que se editó uno.

@@ -99,23 +99,28 @@ enum RecurringDeposits {
             changed = changed || posted > 0
         }
 
+        // Para la nota del cobro del seguro, en el idioma de la app.
+        let language = UserDefaults.standard.string(forKey: AppLanguage.storageKey).flatMap(AppLanguage.init(rawValue:))
+        let t = L10n(language: language ?? .deviceDefault)
+
         for plan in autoPayments {
             guard let account = plan.account, let debt = plan.debt, plan.amount > 0 else { continue }
             var posted = 0
             while plan.nextPayDate <= now && posted < 1000 {
-                // Si la deuda ya está liquidada, la fecha se salta sin cobrar.
-                let amount = min(plan.amount, debt.payoffAmount)
+                // Si la deuda ya está liquidada, la fecha se salta sin cobrar. El seguro sale completo
+                // de la cuenta y no toca la deuda.
+                let amount = plan.isInsurance ? plan.amount : min(plan.amount, debt.payoffAmount)
                 if amount > 0.005 {
                     let payment = Movement(kind: .payment)
                     context.insert(payment)
                     payment.amount = amount
                     payment.date = plan.nextPayDate
                     payment.payDate = plan.nextPayDate
-                    payment.note = debt.name
+                    payment.note = plan.isInsurance ? t.insuranceOf(debt.name) : debt.name
                     payment.account = account
                     payment.debt = debt
                     payment.recurringPayment = plan
-                    payment.appliedToDebt = debt.balanceReduction(
+                    payment.appliedToDebt = plan.isInsurance ? 0 : debt.balanceReduction(
                         forPayment: amount,
                         includesInstallments: plan.includesInstallments
                     )

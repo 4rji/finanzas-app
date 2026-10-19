@@ -35,26 +35,24 @@ struct MonthSummary {
 
         // Lo que todavía no se suma al historial: desde el siguiente pago de cada uno hasta fin de mes.
         for recurring in incomes where recurring.fromAccount == nil && recurring.account?.kind == .checking {
-            let count = MonthSummary.upcomingCount(
-                frequency: recurring.frequency, start: recurring.startDate, next: recurring.postedCount, in: interval
-            )
+            let count = MonthSummary.upcomingCount(next: recurring.postedCount, in: interval) {
+                recurring.frequency.payDate($0, from: recurring.startDate)
+            }
             expectedIncome += recurring.amount * Double(count)
         }
         for plan in autoPayments where plan.debt != nil && plan.account?.kind == .checking {
-            let count = MonthSummary.upcomingCount(
-                frequency: .monthly, start: plan.startDate, next: plan.postedCount, in: interval
-            )
+            let count = MonthSummary.upcomingCount(next: plan.postedCount, in: interval) { plan.payDate($0) }
             expectedPayments += plan.amount * Double(count)
         }
     }
 
     /// Fechas de pago desde el número `next` que caen dentro de `interval`.
-    static func upcomingCount(frequency: PayFrequency, start: Date, next: Int, in interval: DateInterval) -> Int {
+    static func upcomingCount(next: Int, in interval: DateInterval, payDate: (Int) -> Date) -> Int {
         var count = 0
         var n = next
         // Tope por si la fecha de inicio quedó muy atrás.
         while n - next < 1000 {
-            let date = frequency.payDate(n, from: start)
+            let date = payDate(n)
             if date >= interval.end { break }
             if date >= interval.start { count += 1 }
             n += 1

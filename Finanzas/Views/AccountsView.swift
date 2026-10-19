@@ -122,6 +122,8 @@ private struct AccountSummaryView: View {
     @State private var editingAccount: Account?
     @State private var editingIncome: RecurringIncome?
     @State private var editingAutoPayment: RecurringPayment?
+    /// El cobro del seguro se cambia desde el préstamo.
+    @State private var editingInsuranceDebt: Debt?
 
     /// Los aportes y transferencias de inversiones se ven en Inversiones.
     private var incomes: [RecurringIncome] { allIncomes.filter { !$0.isInvestment } }
@@ -182,13 +184,13 @@ private struct AccountSummaryView: View {
                         AccountSection(title: t.autoPayments) {
                             ForEach(autoPayments) { plan in
                                 Button {
-                                    editingAutoPayment = plan
+                                    edit(plan)
                                 } label: {
                                     AutoPaymentRow(plan: plan)
                                 }
                                 .buttonStyle(.plain)
                                 .contextMenu {
-                                    Button(t.edit) { editingAutoPayment = plan }
+                                    Button(t.edit) { edit(plan) }
                                     Button(t.delete, role: .destructive) { delete(plan) }
                                 }
                             }
@@ -247,12 +249,23 @@ private struct AccountSummaryView: View {
             .sheet(item: $editingAutoPayment) { plan in
                 PaymentFormView(recurring: plan)
             }
+            .sheet(item: $editingInsuranceDebt) { debt in
+                DebtFormView(kind: debt.kind, debt: debt)
+            }
         }
     }
 
     private func delete(_ income: RecurringIncome) {
         context.delete(income)
         try? context.save()
+    }
+
+    private func edit(_ plan: RecurringPayment) {
+        if plan.isInsurance {
+            editingInsuranceDebt = plan.debt
+        } else {
+            editingAutoPayment = plan
+        }
     }
 
     private func delete(_ plan: RecurringPayment) {
@@ -451,17 +464,30 @@ private struct AutoPaymentRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
-                Label(plan.debt?.name ?? "", systemImage: plan.debt?.kind.systemImage ?? "creditcard")
+                Label(title, systemImage: plan.isInsurance ? "shield" : plan.debt?.kind.systemImage ?? "creditcard")
                     .appFont(.body, weight: .medium)
                 Spacer()
                 Text(t.money(plan.amount))
                     .monospacedDigit()
             }
-            Text(t.autoPaySummary(amount: plan.amount, account: plan.account?.name ?? "", next: plan.nextPayDate))
+            Text(summary)
                 .appFont(.subheadline)
                 .foregroundStyle(.secondary)
         }
         .padding(.vertical, 2)
         .contentShape(Rectangle())
+    }
+
+    private var title: String {
+        let name = plan.debt?.name ?? ""
+        return plan.isInsurance ? t.insuranceOf(name) : name
+    }
+
+    private var summary: String {
+        let account = plan.account?.name ?? ""
+        guard plan.isInsurance, let debt = plan.debt else {
+            return t.autoPaySummary(amount: plan.amount, account: account, next: plan.nextPayDate)
+        }
+        return t.insuranceChargeSummary(amount: plan.amount, frequency: debt.insuranceFrequency, account: account, next: plan.nextPayDate)
     }
 }

@@ -212,24 +212,28 @@ extension View {
 }
 
 /// Barra de cada pestaña: botones a los lados y, en medio, el total de la pantalla. Si no cabe en
-/// una fila (iPhone o letra grande), el total va arriba y los botones abajo.
+/// una fila (iPhone o letra grande), el total va arriba y los botones abajo. Con `onTapAmount`, el
+/// total se puede tocar (por ejemplo, para elegir qué se suma).
 struct TabHeader<Leading: View, Trailing: View>: View {
     @Environment(\.l10n) private var t
     @Environment(\.textScale) private var scale
     @Environment(\.colorScheme) private var scheme
     let caption: String
     let amount: Double
+    let onTapAmount: (() -> Void)?
     let leading: Leading
     let trailing: Trailing
 
     init(
         caption: String,
         amount: Double,
+        onTapAmount: (() -> Void)? = nil,
         @ViewBuilder leading: () -> Leading,
         @ViewBuilder trailing: () -> Trailing
     ) {
         self.caption = caption
         self.amount = amount
+        self.onTapAmount = onTapAmount
         self.leading = leading()
         self.trailing = trailing()
     }
@@ -265,14 +269,36 @@ struct TabHeader<Leading: View, Trailing: View>: View {
         .padding(.bottom, 6)
     }
 
+    @ViewBuilder
     private var center: some View {
+        if let onTapAmount {
+            Button(action: onTapAmount) {
+                total
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(PressableStyle())
+            .accessibilityHint(t.chooseWhatCounts)
+            .help(t.chooseWhatCounts)
+        } else {
+            total
+        }
+    }
+
+    private var total: some View {
         VStack(spacing: 2) {
-            Text(caption)
-                .appFont(.subheadline, weight: .bold)
-                .textCase(.uppercase)
-                .tracking(1.1)
-                .foregroundStyle(foreground.opacity(0.65))
-                .lineLimit(1)
+            HStack(spacing: 4) {
+                Text(caption)
+                    .appFont(.subheadline, weight: .bold)
+                    .textCase(.uppercase)
+                    .tracking(1.1)
+                    .lineLimit(1)
+                if onTapAmount != nil {
+                    Image(systemName: "slider.horizontal.3")
+                        .appFont(.subheadline, weight: .bold)
+                        .accessibilityHidden(true)
+                }
+            }
+            .foregroundStyle(foreground.opacity(0.65))
             Text(t.money(amount))
                 .font(.system(size: 22 * scale, weight: .heavy, design: .rounded))
                 .foregroundStyle(foreground)

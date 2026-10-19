@@ -9,6 +9,7 @@ struct DebtsListView: View {
     @Query(sort: \DebtGroup.createdAt) private var groups: [DebtGroup]
     @State private var newKind: DebtKind?
     @State private var addingGroup = false
+    @State private var choosingTotal = false
     @State private var editingGroup: DebtGroup?
 
     private var totalDebt: Double {
@@ -43,13 +44,30 @@ struct DebtsListView: View {
                 ThemedForm {
                     Section {
                         ForEach(categoryTotals) { item in
-                            CategoryTotalRow(item: item, share: totalDebt > 0 ? item.total / totalDebt : 0)
+                            NavigationLink {
+                                DebtCategoryView(kind: item.kind)
+                                    .backButton(t.debts)
+                            } label: {
+                                CategoryTotalRow(item: item, share: totalDebt > 0 ? item.total / totalDebt : 0)
+                            }
                         }
-                        LabeledContent(t.totalDebt) {
-                            Text(t.money(totalDebt))
-                                .fontWeight(.semibold)
-                                .monospacedDigit()
+                        Button {
+                            choosingTotal = true
+                        } label: {
+                            LabeledContent(t.totalDebt) {
+                                HStack(spacing: 6) {
+                                    Text(t.money(totalDebt))
+                                        .fontWeight(.semibold)
+                                        .monospacedDigit()
+                                    Image(systemName: "slider.horizontal.3")
+                                        .foregroundStyle(.secondary)
+                                        .accessibilityHidden(true)
+                                }
+                            }
+                            .contentShape(Rectangle())
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityHint(t.chooseWhatCounts)
                         if let usage = debts.creditUsage {
                             LabeledContent(t.creditUsed) {
                                 HStack(spacing: 6) {
@@ -133,7 +151,7 @@ struct DebtsListView: View {
             }
         }
         .safeAreaInset(edge: .top) {
-            TabHeader(caption: t.totalDebt, amount: totalDebt) {
+            TabHeader(caption: t.totalDebt, amount: totalDebt, onTapAmount: debts.isEmpty ? nil : { choosingTotal = true }) {
                 if !debts.isEmpty {
                     NavigationLink {
                         PayoffView()
@@ -162,6 +180,9 @@ struct DebtsListView: View {
         }
         .sheet(isPresented: $addingGroup) {
             DebtGroupFormView()
+        }
+        .sheet(isPresented: $choosingTotal) {
+            DebtTotalChooserView()
         }
         .sheet(item: $editingGroup) { group in
             DebtGroupFormView(group: group)
@@ -300,7 +321,8 @@ private struct DebtGroupRow: View {
     }
 }
 
-private struct DebtRow: View {
+/// Fila de una deuda con su ícono, datos principales y lo que se debe.
+struct DebtRow: View {
     @Environment(\.l10n) private var t
     let debt: Debt
 
