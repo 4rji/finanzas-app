@@ -138,115 +138,101 @@ private struct AccountSummaryView: View {
                     .prominentButton()
             }
         } else {
-            ThemedForm {
-                Section {
-                    ForEach(accounts) { account in
-                        Button {
-                            editingAccount = account
-                        } label: {
-                            AccountRow(account: account)
-                        }
-                        .buttonStyle(.plain)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(t.balance)
+                            .sectionTitle()
+                        AccountCardCarousel(accounts: accounts) { editingAccount = $0 }
                     }
-                    if accounts.count > 1 {
-                        LabeledContent(t.totalBalance) {
-                            Text(t.money(accounts.reduce(0) { $0 + $1.balance }))
-                                .fontWeight(.semibold)
-                                .monospacedDigit()
-                        }
-                    }
-                } header: {
-                    Text(t.balance)
-                        .sectionTitle()
-                }
 
-                Section {
-                    if incomes.isEmpty {
-                        Text(t.noRecurringIncome)
-                            .foregroundStyle(.secondary)
-                    }
-                    ForEach(incomes) { income in
-                        Button {
-                            editingIncome = income
-                        } label: {
-                            RecurringIncomeRow(income: income)
+                    AccountSection(
+                        title: t.recurringIncome,
+                        footer: incomes.monthlyIncome > 0
+                            ? t.monthlyIncome + ": " + t.money(incomes.monthlyIncome) : nil
+                    ) {
+                        if incomes.isEmpty {
+                            Text(t.noRecurringIncome)
+                                .foregroundStyle(.secondary)
                         }
-                        .buttonStyle(.plain)
-                        .contextMenu {
-                            Button(t.edit) { editingIncome = income }
-                            Button(t.delete, role: .destructive) { delete(income) }
-                        }
-                    }
-                    Button {
-                        onAdd(.income)
-                    } label: {
-                        Label(t.addRecurringIncome, systemImage: "plus")
-                    }
-                } header: {
-                    Text(t.recurringIncome)
-                        .sectionTitle()
-                } footer: {
-                    if incomes.monthlyIncome > 0 {
-                        Text(t.monthlyIncome + ": " + t.money(incomes.monthlyIncome))
-                            .appFont(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                if !autoPayments.isEmpty {
-                    Section {
-                        ForEach(autoPayments) { plan in
+                        ForEach(incomes) { income in
                             Button {
-                                editingAutoPayment = plan
+                                editingIncome = income
                             } label: {
-                                AutoPaymentRow(plan: plan)
+                                RecurringIncomeRow(income: income)
                             }
                             .buttonStyle(.plain)
                             .contextMenu {
-                                Button(t.edit) { editingAutoPayment = plan }
-                                Button(t.delete, role: .destructive) { delete(plan) }
+                                Button(t.edit) { editingIncome = income }
+                                Button(t.delete, role: .destructive) { delete(income) }
                             }
                         }
-                    } header: {
-                        Text(t.autoPayments)
-                            .sectionTitle()
+                        Button {
+                            onAdd(.income)
+                        } label: {
+                            Label(t.addRecurringIncome, systemImage: "plus")
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.vertical, 4)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
                     }
-                }
 
-                Section {
-                    Button {
-                        onAdd(.extra)
-                    } label: {
-                        Label(t.addExtraIncome, systemImage: MovementKind.extra.systemImage)
+                    if !autoPayments.isEmpty {
+                        AccountSection(title: t.autoPayments) {
+                            ForEach(autoPayments) { plan in
+                                Button {
+                                    editingAutoPayment = plan
+                                } label: {
+                                    AutoPaymentRow(plan: plan)
+                                }
+                                .buttonStyle(.plain)
+                                .contextMenu {
+                                    Button(t.edit) { editingAutoPayment = plan }
+                                    Button(t.delete, role: .destructive) { delete(plan) }
+                                }
+                            }
+                        }
                     }
-                    Button {
-                        onAdd(.payment)
-                    } label: {
-                        Label(t.recordPayment, systemImage: MovementKind.payment.systemImage)
-                    }
-                    .disabled(!canPay)
-                    Button {
-                        onAdd(.transfer)
-                    } label: {
-                        Label(t.moveMoney, systemImage: MovementKind.transfer.systemImage)
-                    }
-                } footer: {
-                    Text(t.historyHint)
-                        .appFont(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
 
-                let summary = MonthSummary(movements: movements, incomes: allIncomes, autoPayments: allAutoPayments)
-                Section {
-                    MonthSummaryGrid(summary: summary)
-                } header: {
-                    Text(t.monthSummaryTitle(summary.month))
-                        .sectionTitle()
-                } footer: {
-                    Text(t.monthSummaryFooter)
-                        .appFont(.subheadline)
-                        .foregroundStyle(.secondary)
+                    AccountSection(footer: t.historyHint) {
+                        Button {
+                            onAdd(.extra)
+                        } label: {
+                            Label(t.addExtraIncome, systemImage: MovementKind.extra.systemImage)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.vertical, 4)
+                                .contentShape(Rectangle())
+                        }
+                        Button {
+                            onAdd(.payment)
+                        } label: {
+                            Label(t.recordPayment, systemImage: MovementKind.payment.systemImage)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.vertical, 4)
+                                .contentShape(Rectangle())
+                        }
+                        .disabled(!canPay)
+                        Button {
+                            onAdd(.transfer)
+                        } label: {
+                            Label(t.moveMoney, systemImage: MovementKind.transfer.systemImage)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.vertical, 4)
+                                .contentShape(Rectangle())
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    let summary = MonthSummary(movements: movements, incomes: allIncomes, autoPayments: allAutoPayments)
+                    AccountSection(title: t.monthSummaryTitle(summary.month), footer: t.monthSummaryFooter) {
+                        MonthSummaryGrid(summary: summary)
+                    }
                 }
+                .padding(.horizontal, 24)
+                .padding(.top, 20)
+                .padding(.bottom, 32)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .sheet(item: $editingAccount) { account in
                 AccountFormView(account: account)
@@ -272,6 +258,44 @@ private struct AccountSummaryView: View {
     private func delete(_ plan: RecurringPayment) {
         context.delete(plan)
         try? context.save()
+    }
+}
+
+/// Superficie que ocupa el ancho disponible sin las restricciones de un formulario agrupado.
+private struct AccountSection<Content: View>: View {
+    @Environment(\.colorScheme) private var scheme
+    let title: String?
+    let footer: String?
+    let content: Content
+
+    init(title: String? = nil, footer: String? = nil, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.footer = footer
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let title {
+                Text(title)
+                    .sectionTitle()
+            }
+            VStack(alignment: .leading, spacing: 16) {
+                content
+            }
+            .appFont(.body)
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(scheme == .dark ? Color(hex: 0x1A261F) : .white, in: RoundedRectangle(cornerRadius: 22))
+            .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(Color.primary.opacity(0.06), lineWidth: 1))
+            if let footer {
+                Text(footer)
+                    .appFont(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

@@ -219,6 +219,7 @@ extension View {
 struct TabHeader<Leading: View, Trailing: View>: View {
     @Environment(\.l10n) private var t
     @Environment(\.textScale) private var scale
+    @Environment(\.colorScheme) private var scheme
     let caption: String
     let amount: Double
     let leading: Leading
@@ -259,6 +260,7 @@ struct TabHeader<Leading: View, Trailing: View>: View {
                 HStack(spacing: 10) { trailing }
             }
         }
+        .foregroundStyle(foreground)
         .padding(14 * scale)
         .glassCard(cornerRadius: 24)
         .padding(.horizontal, 16)
@@ -269,14 +271,23 @@ struct TabHeader<Leading: View, Trailing: View>: View {
     private var center: some View {
         VStack(spacing: 2) {
             Text(caption)
-                .sectionTitle()
+                .appFont(.subheadline, weight: .bold)
+                .textCase(.uppercase)
+                .tracking(1.1)
+                .foregroundStyle(foreground.opacity(0.65))
                 .lineLimit(1)
             Text(t.money(amount))
                 .font(.system(size: 22 * scale, weight: .heavy, design: .rounded))
+                .foregroundStyle(foreground)
                 .monospacedDigit()
                 .lineLimit(1)
                 .fixedSize()
         }
+    }
+
+    /// El vidrio nativo puede heredar un color de etiqueta que no sigue la apariencia de la app.
+    private var foreground: Color {
+        Color(hex: scheme == .dark ? 0xF1F7F3 : 0x172B24)
     }
 }
 

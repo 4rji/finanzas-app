@@ -76,7 +76,6 @@ struct DashboardView: View {
             .padding(.horizontal, 24)
             .padding(.top, 24)
             .padding(.bottom, 32)
-            .frame(maxWidth: 960)
             .frame(maxWidth: .infinity)
         }
         .screenBackground()
@@ -249,10 +248,10 @@ struct DashboardView: View {
                 .accessibilityLabel(t.carouselPosition(currentIndex + 1, total: visibleSections.count))
             Spacer()
             carouselArrow("chevron.left", label: t.previousSection, disabled: currentIndex == 0) {
-                select(visibleSections[currentIndex - 1])
+                moveSelection(by: -1)
             }
             carouselArrow("chevron.right", label: t.nextSection, disabled: currentIndex == visibleSections.count - 1) {
-                select(visibleSections[currentIndex + 1])
+                moveSelection(by: 1)
             }
         }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: currentSection)
@@ -268,6 +267,12 @@ struct DashboardView: View {
         }
     }
 
+    private func moveSelection(by offset: Int) {
+        let index = currentIndex + offset
+        guard visibleSections.indices.contains(index) else { return }
+        select(visibleSections[index])
+    }
+
     private func carouselArrow(_ symbol: String, label: String, disabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
@@ -277,8 +282,8 @@ struct DashboardView: View {
                 .background {
                     Circle()
                         .fill(scheme == .dark ? Color.white.opacity(0.07) : .white)
-                    }
-            }
+                }
+        }
         .buttonStyle(PressableStyle())
         .disabled(disabled)
         .accessibilityLabel(label)
@@ -549,27 +554,81 @@ private struct SectionChip: View {
 
 /// Tarjeta chica de vidrio que solo lleva a otra pantalla.
 private struct LinkCard: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.textScale) private var scale
+    @Environment(\.l10n) private var t
     let title: String
     let subtitle: String
     let systemImage: String
 
     var body: some View {
-        HStack(spacing: 12) {
-            IconTile(systemImage: systemImage, tint: .mint, size: 38)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .appFont(.body, weight: .semibold)
-                Text(subtitle)
-                    .appFont(.subheadline)
-                    .foregroundStyle(.secondary)
+        let shape = RoundedRectangle(cornerRadius: 24, style: .continuous)
+
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 20) {
+                illustration
+                details
+                Spacer(minLength: 12)
+                arrow
             }
-            Spacer(minLength: 0)
-            Image(systemName: "chevron.right")
-                .appFont(.headline)
-                .foregroundStyle(.tertiary)
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    illustration
+                    Spacer()
+                    arrow
+                }
+                details
+            }
         }
-        .padding(14)
-        .glassCard(cornerRadius: 22)
-        .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .padding(22 * scale)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            shape.fill(scheme == .dark ? Color(hex: 0x1A2D28) : Color.white)
+        }
+        .overlay {
+            shape.strokeBorder(ThemeTint.mint.solid(scheme).opacity(0.2), lineWidth: 1)
+        }
+        .overlay(alignment: .leading) {
+            Capsule()
+                .fill(ThemeTint.mint.solid(scheme))
+                .frame(width: 4, height: 36 * scale)
+        }
+        .contentShape(shape)
+    }
+
+    private var illustration: some View {
+        Image(systemName: systemImage)
+            .font(.system(size: 26 * scale, weight: .medium))
+            .foregroundStyle(ThemeTint.mint.solid(scheme))
+            .frame(width: 62 * scale, height: 62 * scale)
+            .background(ThemeTint.mint.solid(scheme).opacity(0.1), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .accessibilityHidden(true)
+    }
+
+    private var details: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(t.timeToPayoff)
+                .font(.system(size: 10 * scale, weight: .bold, design: .rounded))
+                .textCase(.uppercase)
+                .tracking(1.2)
+                .foregroundStyle(ThemeTint.mint.solid(scheme))
+            Text(title)
+                .font(.system(size: 18 * scale, weight: .bold, design: .rounded))
+                .foregroundStyle(scheme == .dark ? Color.white : Color(hex: 0x172B24))
+                .fixedSize(horizontal: false, vertical: true)
+            Text(subtitle)
+                .appFont(.subheadline)
+                .foregroundStyle(scheme == .dark ? Color.white.opacity(0.68) : Color(hex: 0x5B6B63))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var arrow: some View {
+        Image(systemName: "arrow.up.right")
+            .font(.system(size: 15 * scale, weight: .semibold))
+            .foregroundStyle(ThemeTint.mint.solid(scheme))
+            .frame(width: 40 * scale, height: 40 * scale)
+            .background(ThemeTint.mint.solid(scheme).opacity(0.1), in: Circle())
+            .accessibilityHidden(true)
     }
 }
