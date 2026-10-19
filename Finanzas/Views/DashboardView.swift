@@ -67,6 +67,7 @@ struct DashboardView: View {
                 if showDebts && !debts.isEmpty {
                     NavigationLink {
                         PayoffView()
+                            .backButton(t.appName)
                     } label: {
                         LinkCard(title: t.payoffQuestion, subtitle: t.payoffHint, systemImage: "calendar.badge.clock")
                     }
@@ -302,6 +303,7 @@ struct DashboardView: View {
     private func accountsCard(compact: Bool) -> some View {
         NavigationLink {
             AccountsView()
+                .backButton(t.appName)
         } label: {
             DashboardCard(
                 title: t.accounts,
@@ -328,6 +330,7 @@ struct DashboardView: View {
         case .investments:
             NavigationLink {
                 InvestmentsView()
+                    .backButton(t.appName)
             } label: {
                 DashboardCard(
                     title: t.investments,
@@ -343,6 +346,7 @@ struct DashboardView: View {
         case .debts:
             NavigationLink {
                 DebtsListView()
+                    .backButton(t.appName)
             } label: {
                 DashboardCard(
                     title: t.debts,
@@ -358,6 +362,7 @@ struct DashboardView: View {
         case .assets:
             NavigationLink {
                 AssetsView()
+                    .backButton(t.appName)
             } label: {
                 DashboardCard(
                     title: t.assets,

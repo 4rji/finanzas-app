@@ -61,6 +61,7 @@ struct LoanDetailView: View {
                     )
                     NavigationLink(t.amortizationTable) {
                         AmortizationTableView(rows: rows)
+                            .backButton(debt.name)
                     }
                 }
             } header: {

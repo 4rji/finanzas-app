@@ -29,7 +29,19 @@ struct DebtsListView: View {
                         .prominentButton()
                 }
             } else {
-                ThemedList {
+                ThemedForm {
+                    ForEach(DebtKind.allCases) { kind in
+                        let items = debts.filter { $0.kind == kind && !$0.excludedFromTotal }
+                        if !items.isEmpty {
+                            Section {
+                                ForEach(items) { debtLink($0) }
+                            } header: {
+                                Text(t.kindPlural(kind))
+                                    .sectionTitle()
+                            }
+                        }
+                    }
+
                     Section {
                         LabeledContent(t.totalDebt) {
                             Text(t.money(totalDebt))
@@ -43,18 +55,6 @@ struct DebtsListView: View {
                                         .foregroundStyle(.secondary)
                                     UsageText(fraction: usage.used / usage.limit)
                                 }
-                            }
-                        }
-                    }
-
-                    ForEach(DebtKind.allCases) { kind in
-                        let items = debts.filter { $0.kind == kind && !$0.excludedFromTotal }
-                        if !items.isEmpty {
-                            Section {
-                                ForEach(items) { debtLink($0) }
-                            } header: {
-                                Text(t.kindPlural(kind))
-                                    .sectionTitle()
                             }
                         }
                     }
@@ -93,6 +93,7 @@ struct DebtsListView: View {
                 if !debts.isEmpty {
                     NavigationLink {
                         PayoffView()
+                            .backButton(t.debts)
                     } label: {
                         Label(t.timeToPayoff, systemImage: "calendar.badge.clock")
                     }
@@ -131,6 +132,7 @@ struct DebtsListView: View {
     private func debtLink(_ debt: Debt) -> some View {
         NavigationLink {
             DebtDetailView(debt: debt)
+                .backButton(t.debts)
         } label: {
             DebtRow(debt: debt)
         }
@@ -178,9 +180,9 @@ private struct DebtRow: View {
     let debt: Debt
 
     var body: some View {
-        HStack(spacing: 12) {
-            IconTile(systemImage: debt.kind.systemImage, tint: debt.kind.tint)
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: 14) {
+            CardChip(systemImage: debt.kind.systemImage, tint: debt.kind.tint)
+            VStack(alignment: .leading, spacing: 1) {
                 Text(debt.name)
                     .appFont(.body, weight: .semibold)
                 Text(subtitle)
@@ -189,9 +191,11 @@ private struct DebtRow: View {
             }
             Spacer()
             Text(t.money(debt.totalOwed))
+                .appFont(.title3, weight: .bold)
                 .monospacedDigit()
         }
         .padding(.vertical, 4)
+        .contentShape(Rectangle())
     }
 
     private var subtitle: String {

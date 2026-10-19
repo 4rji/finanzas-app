@@ -8,7 +8,8 @@ private struct PayoffItem: Identifiable {
     var id: PersistentIdentifier { debt.persistentModelID }
 }
 
-/// Cada deuda con su saldo, pago y fechas estimadas de liquidación y promociones.
+/// Todas las deudas a la vista como fichas, cada una con el color de su categoría, con su saldo,
+/// pago y fecha estimada de liquidación.
 struct PayoffView: View {
     @Environment(\.l10n) private var t
     @Environment(\.colorScheme) private var scheme
@@ -27,26 +28,28 @@ struct PayoffView: View {
                 GeometryReader { geometry in
                     let compact = geometry.size.width < 620 * scale
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 22 * scale) {
+                        VStack(alignment: .leading, spacing: 16 * scale) {
                             hero(items)
-                            summary(items, compact: compact)
-                            VStack(alignment: .leading, spacing: 13 * scale) {
+                            VStack(alignment: .leading, spacing: 10 * scale) {
                                 HStack(alignment: .firstTextBaseline) {
                                     Text(t.debts)
-                                        .font(.system(size: 22 * scale, weight: .bold, design: .rounded))
+                                        .font(.system(size: 18 * scale, weight: .bold, design: .rounded))
                                         .accessibilityAddTraits(.isHeader)
                                     Spacer(minLength: 8)
                                     Text(t.debtCount(items.count))
                                         .appFont(.subheadline)
                                         .foregroundStyle(.secondary)
                                 }
-                                ForEach(items) { item in
-                                    NavigationLink {
-                                        DebtDetailView(debt: item.debt)
-                                    } label: {
-                                        PayoffRow(debt: item.debt, estimate: item.estimate, compact: compact)
+                                LazyVGrid(columns: [GridItem(.adaptive(minimum: 136 * scale), spacing: 12)], spacing: 12) {
+                                    ForEach(items) { item in
+                                        NavigationLink {
+                                            DebtDetailView(debt: item.debt)
+                                                .backButton(t.timeToPayoff)
+                                        } label: {
+                                            PayoffTile(debt: item.debt, estimate: item.estimate)
+                                        }
+                                        .buttonStyle(PressableStyle())
                                     }
-                                    .buttonStyle(PressableStyle())
                                 }
                             }
                             Label {
@@ -59,9 +62,9 @@ struct PayoffView: View {
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 4)
                         }
-                        .padding(.horizontal, compact ? 18 : 28)
-                        .padding(.top, 16)
-                        .padding(.bottom, 32)
+                        .padding(.horizontal, compact ? 16 : 28)
+                        .padding(.top, 12)
+                        .padding(.bottom, 24)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
@@ -74,58 +77,61 @@ struct PayoffView: View {
 
     private func hero(_ items: [PayoffItem]) -> some View {
         let date = debtFreeDate(items.map(\.estimate))
-        let shape = RoundedRectangle(cornerRadius: 28, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
 
-        return VStack(alignment: .leading, spacing: 16 * scale) {
-            HStack(spacing: 10) {
-                Image(systemName: "calendar.badge.checkmark")
-                    .font(.system(size: 20 * scale, weight: .semibold))
-                    .frame(width: 44 * scale, height: 44 * scale)
-                    .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
-                Text(date == nil ? t.estimateSection : t.debtFreeApprox)
-                    .appFont(.subheadline, weight: .semibold)
-                    .foregroundStyle(.white.opacity(0.85))
+        return VStack(alignment: .leading, spacing: 14 * scale) {
+            HStack(spacing: 12) {
+                Image(systemName: date == nil ? summaryStatusIcon(items) : "calendar.badge.checkmark")
+                    .font(.system(size: 17 * scale, weight: .semibold))
+                    .frame(width: 38 * scale, height: 38 * scale)
+                    .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(date == nil ? t.estimateSection : t.debtFreeApprox)
+                        .appFont(.subheadline, weight: .semibold)
+                        .foregroundStyle(.white.opacity(0.85))
+                    Text(date.map { t.monthYearLong($0) } ?? summaryStatus(items))
+                        .font(.system(size: 26 * scale, weight: .bold, design: .rounded))
+                        .tracking(-0.5)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .accessibilityAddTraits(.isHeader)
+                }
             }
-            Text(date.map { t.monthYearLong($0) } ?? t.timeToPayoff)
-                .font(.system(size: 36 * scale, weight: .bold, design: .rounded))
-                .tracking(-0.8)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityAddTraits(.isHeader)
-            if date != nil {
-                Text(t.payoffHint)
-                    .appFont(.body)
-                    .foregroundStyle(.white.opacity(0.85))
-            } else {
-                Label(summaryStatus(items), systemImage: summaryStatusIcon(items))
-                    .appFont(.subheadline, weight: .medium)
-                    .padding(12 * scale)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.black.opacity(0.15), in: RoundedRectangle(cornerRadius: 14))
+            Rectangle()
+                .fill(.white.opacity(0.18))
+                .frame(height: 1)
+            HStack(alignment: .top, spacing: 16) {
+                metric(t.totalDebt, value: t.money(debts.countedTotal))
+                metric(t.monthlyPayments, value: t.perMonth(items.reduce(0) { $0 + $1.estimate.payment }))
             }
         }
         .foregroundStyle(.white)
-        .padding(24 * scale)
+        .padding(18 * scale)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
-            ZStack(alignment: .trailing) {
+            ZStack {
                 LinearGradient(colors: ThemeTint.mint.gradient(scheme), startPoint: .topLeading, endPoint: .bottomTrailing)
-                Circle()
-                    .stroke(.white.opacity(0.05), lineWidth: 38)
-                    .frame(width: 240, height: 240)
-                    .offset(x: 100, y: 80)
-                    .accessibilityHidden(true)
+                Bubbles()
             }
         }
         .clipShape(shape)
         .overlay(shape.strokeBorder(.white.opacity(0.15), lineWidth: 1))
     }
 
-    private func summary(_ items: [PayoffItem], compact: Bool) -> some View {
-        let layout = compact ? AnyLayout(VStackLayout(spacing: 12)) : AnyLayout(HStackLayout(spacing: 16))
-        return layout {
-            PayoffMetric(title: t.totalDebt, value: t.money(debts.countedTotal), systemImage: "creditcard", tint: .peach)
-            PayoffMetric(title: t.monthlyPayments, value: t.perMonth(items.reduce(0) { $0 + $1.estimate.payment }), systemImage: "arrow.triangle.2.circlepath", tint: .mint)
+    private func metric(_ title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+                .appFont(.subheadline, weight: .medium)
+                .foregroundStyle(.white.opacity(0.8))
+            Text(value)
+                .font(.system(size: 19 * scale, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
     }
 
     private func summaryStatus(_ items: [PayoffItem]) -> String {
@@ -151,183 +157,96 @@ struct PayoffView: View {
     }
 }
 
-private struct PayoffMetric: View {
-    @Environment(\.colorScheme) private var scheme
-    @Environment(\.textScale) private var scale
-    let title: String
-    let value: String
-    let systemImage: String
-    let tint: ThemeTint
-
-    var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .top, spacing: 14) {
-                icon
-                metricText
-                    .frame(minWidth: 160 * scale, alignment: .leading)
-                Spacer(minLength: 0)
-            }
-            VStack(alignment: .leading, spacing: 14) {
-                icon
-                metricText
-            }
-        }
-        .padding(20 * scale)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(scheme == .dark ? Color(hex: 0x1A261F) : .white, in: RoundedRectangle(cornerRadius: 22))
-        .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(Color.primary.opacity(0.06), lineWidth: 1))
-        .accessibilityElement(children: .combine)
-    }
-
-    private var icon: some View {
-        IconTile(systemImage: systemImage, tint: tint, size: 38)
-            .accessibilityHidden(true)
-    }
-
-    private var metricText: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text(title)
-                .appFont(.subheadline, weight: .medium)
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.system(size: 26 * scale, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.65)
-        }
-    }
-}
-
-private struct PayoffRow: View {
+/// Ficha de una deuda con el color de su categoría: saldo, tiempo que falta, pago y fecha.
+private struct PayoffTile: View {
     @Environment(\.l10n) private var t
     @Environment(\.colorScheme) private var scheme
     @Environment(\.textScale) private var scale
     let debt: Debt
     let estimate: PayoffEstimate
-    let compact: Bool
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 24, style: .continuous)
-        VStack(alignment: .leading, spacing: 18 * scale) {
-            HStack(spacing: 12) {
-                IconTile(systemImage: debt.kind.systemImage, tint: debt.kind.tint, size: 44)
+        let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
+        let tint = debt.kind.tint
+
+        VStack(alignment: .leading, spacing: 10 * scale) {
+            HStack(spacing: 8) {
+                Image(systemName: debt.kind.systemImage)
+                    .font(.system(size: 13 * scale, weight: .semibold))
+                    .frame(width: 28 * scale, height: 28 * scale)
+                    .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                     .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(debt.name)
-                        .appFont(.headline, weight: .semibold)
-                        .foregroundStyle(.primary)
-                    Text(t.kindName(debt.kind))
+                Text(debt.name)
+                    .appFont(.body, weight: .semibold)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                if hasExpiredPromo {
+                    Image(systemName: "exclamationmark.triangle.fill")
                         .appFont(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .accessibilityLabel(t.promoExpired)
+                        .help(t.promoExpired)
                 }
-                Spacer(minLength: 8)
-                Image(systemName: "chevron.right")
-                    .appFont(.subheadline, weight: .semibold)
-                    .foregroundStyle(.tertiary)
-                    .accessibilityHidden(true)
             }
-            VStack(alignment: .leading, spacing: 5) {
-                Text(t.remainingBalance)
+            Text(t.money(debt.totalOwed))
+                .font(.system(size: 24 * scale, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            VStack(alignment: .leading, spacing: 3) {
+                Label(statusText, systemImage: statusIcon)
+                    .appFont(.subheadline, weight: .semibold)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                // Siempre ocupa su renglón para que todas las fichas midan lo mismo.
+                Text(detailText ?? " ")
                     .appFont(.subheadline)
-                    .foregroundStyle(.secondary)
-                Text(t.money(debt.totalOwed))
-                    .font(.system(size: 30 * scale, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(.white.opacity(0.8))
                     .monospacedDigit()
                     .lineLimit(1)
-                    .minimumScaleFactor(0.65)
-            }
-            status
-            if estimate.payment > 0 {
-                let layout = compact ? AnyLayout(VStackLayout(alignment: .leading, spacing: 14)) : AnyLayout(HStackLayout(alignment: .top, spacing: 24))
-                layout {
-                    detail(title: t.monthlyPayment, value: t.perMonth(estimate.payment))
-                    if case .months(let months) = estimate.status {
-                        detail(title: t.payoffDate, value: t.monthYearLong(LoanMath.endDate(start: Date(), months: months)))
-                    }
-                }
-            }
-            if !transfers.isEmpty || debt.autoPayment?.account != nil || debt.insuranceAmount > 0 {
-                Divider().overlay(Color.primary.opacity(0.03))
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(transfers) { plan in
-                        promo(plan)
-                    }
-                    if let plan = debt.autoPayment, let account = plan.account {
-                        note(t.autoPay + ": " + t.autoPaySummary(amount: plan.amount, account: account.name, next: plan.nextPayDate), icon: "arrow.triangle.2.circlepath")
-                    }
-                    if debt.insuranceAmount > 0 {
-                        note(t.insuranceNote(debt.insuranceAmount), icon: "shield")
-                    }
-                }
+                    .minimumScaleFactor(0.7)
             }
         }
-        .padding(22 * scale)
+        .foregroundStyle(.white)
+        .padding(14 * scale)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(scheme == .dark ? Color(hex: 0x1A261F) : .white, in: shape)
-        .overlay(shape.strokeBorder(Color.primary.opacity(0.07), lineWidth: 1))
+        .background {
+            ZStack {
+                LinearGradient(colors: tint.gradient(scheme), startPoint: .topLeading, endPoint: .bottomTrailing)
+                Bubbles()
+            }
+        }
+        .clipShape(shape)
+        .overlay(shape.strokeBorder(.white.opacity(0.2), lineWidth: 1))
+        .shadow(color: tint.solid(scheme).opacity(0.16), radius: 10, y: 6)
         .contentShape(shape)
-    }
-
-    private var transfers: [InstallmentPlan] {
-        debt.installmentPlans.filter { $0.kind == .balanceTransfer && $0.totalAmount > 0 }
-    }
-
-    @ViewBuilder
-    private var status: some View {
-        switch estimate.status {
-        case .paidOff:
-            badge(t.paidOff, icon: "checkmark.circle.fill", color: ThemeTint.mint.solid(scheme))
-        case .months(let months):
-            badge(t.duration(months: months), icon: "clock", color: debt.kind.tint.solid(scheme))
-        case .noPayment:
-            badge(t.noPaymentSet, icon: "exclamationmark.circle.fill", color: warningColor)
-        case .paymentTooLow:
-            badge(t.paymentNotEnough, icon: "exclamationmark.circle.fill", color: warningColor)
-        }
-    }
-
-    private var warningColor: Color {
-        Color(hex: scheme == .dark ? 0xF3B36D : 0x9B5416)
-    }
-
-    private func badge(_ text: String, icon: String, color: Color) -> some View {
-        Label(text, systemImage: icon)
-            .appFont(.subheadline, weight: .semibold)
-            .foregroundStyle(color)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(color.opacity(scheme == .dark ? 0.13 : 0.08), in: RoundedRectangle(cornerRadius: 12))
-    }
-
-    private func detail(title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(title)
-                .appFont(.subheadline)
-                .foregroundStyle(.secondary)
-            Text(value)
-                .appFont(.body, weight: .semibold)
-                .foregroundStyle(.primary)
-                .monospacedDigit()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 
-    @ViewBuilder
-    private func promo(_ plan: InstallmentPlan) -> some View {
-        if plan.transferEstimate().isExpired {
-            note(t.promoExpired + " · " + t.date(plan.promoEndDate), icon: "exclamationmark.circle", color: warningColor)
-        } else {
-            note(t.promoEnds(plan.promoEndDate) + " · " + t.monthsLeftShort(plan.remainingMonths()), icon: "calendar")
+    private var hasExpiredPromo: Bool {
+        debt.installmentPlans.contains { $0.kind == .balanceTransfer && $0.totalAmount > 0 && $0.transferEstimate().isExpired }
+    }
+
+    private var statusText: String {
+        switch estimate.status {
+        case .paidOff: return t.paidOff
+        case .months(let months): return t.duration(months: months)
+        case .noPayment: return t.noPaymentSet
+        case .paymentTooLow: return t.paymentNotEnough
         }
     }
 
-    private func note(_ text: String, icon: String, color: Color = .secondary) -> some View {
-        Label(text, systemImage: icon)
-            .appFont(.subheadline)
-            .foregroundStyle(color)
-            .fixedSize(horizontal: false, vertical: true)
+    private var statusIcon: String {
+        switch estimate.status {
+        case .paidOff: return "checkmark.circle.fill"
+        case .months: return "clock"
+        case .noPayment, .paymentTooLow: return "exclamationmark.circle.fill"
+        }
+    }
+
+    /// "$300/mes · mar 2028"; nil si no tiene pago.
+    private var detailText: String? {
+        guard estimate.payment > 0 else { return nil }
+        guard case .months(let months) = estimate.status else { return t.perMonth(estimate.payment) }
+        return t.perMonth(estimate.payment) + " · " + t.monthYear(LoanMath.endDate(start: Date(), months: months))
     }
 }
